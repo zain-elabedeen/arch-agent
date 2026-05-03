@@ -28,6 +28,7 @@ def test_graph_pipeline_runs_end_to_end():
         "recommendations": [],
         "critiques": [],
         "final_plan": [],
+        "explanation_report": "",
     }
 
     out = graph.invoke(state)
@@ -37,3 +38,4 @@ def test_graph_pipeline_runs_end_to_end():
     assert "recommendations" in out and len(out["recommendations"]) > 0
     assert "critiques" in out
     assert "final_plan" in out and len(out["final_plan"]) > 0
+    assert "explanation_report" in out and "Runtime Architecture Report" in out["explanation_report"]

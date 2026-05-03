@@ -85,9 +85,11 @@ class RecommendationResponse(BaseModel):
     recommendations: List[Recommendation]
     critiques: List[Critique]
     plan: List[PlanStep]
+    explanation_report: str = ""
 
 
 class GraphState(TypedDict, total=False):
+    run_id: str
     # Input aliases for telemetry stage
     raw_signals: Dict[str, float]
     raw_topology: Dict[str, Any]
@@ -100,4 +102,5 @@ class GraphState(TypedDict, total=False):
     recommendations: List[Recommendation]
     critiques: List[Critique]
     final_plan: List[PlanStep]
+    explanation_report: str
 

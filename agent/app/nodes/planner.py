@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import List
 
+from agent.app.logging_utils import get_logger
 from agent.app.state import GraphState, PlanStep, Recommendation
 
+logger = get_logger("agent.nodes.planner")
 
 _IMPACT_SCORE = {"low": 1, "medium": 2, "high": 3}
 _EFFORT_SCORE = {"low": 1, "medium": 2, "high": 3}
@@ -47,6 +49,18 @@ def build_plan(recommendations: List[Recommendation]) -> List[PlanStep]:
 
 
 def planner_node(state: GraphState) -> GraphState:
+    run_id = state.get("run_id", "n/a")
+    logger.info(
+        "planner_agent start run_id=%s recommendations=%d",
+        run_id,
+        len(state.get("recommendations", [])),
+    )
     state["final_plan"] = build_plan(state.get("recommendations", []))
+    logger.info(
+        "planner_agent done run_id=%s plan_steps=%d first_step=%s",
+        run_id,
+        len(state.get("final_plan", [])),
+        state.get("final_plan", [None])[0].title if state.get("final_plan") else "none",
+    )
     return state
 

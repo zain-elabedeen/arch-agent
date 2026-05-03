@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import Dict, List
 
+from agent.app.logging_utils import get_logger
 from agent.app.models.pattern import ArchitecturePattern
 from agent.app.services.pattern_loader import SMELL_TO_PATTERN_MAP
 from agent.app.state import GraphState, Recommendation
 
+logger = get_logger("agent.nodes.recommend")
 
 _IMPACT_SCORE = {"low": 1, "medium": 2, "high": 3}
 _EFFORT_SCORE = {"low": 1, "medium": 2, "high": 3}
@@ -64,7 +66,19 @@ def recommend_node(state: GraphState) -> GraphState:
     Recommendation node: convert curated patterns into concrete recommendations.
     """
 
+    run_id = state.get("run_id", "n/a")
     smell_types = [s.get("type", "") for s in state.get("smells", [])]
+    logger.info(
+        "recommendation_agent start run_id=%s patterns=%d smell_types=%s",
+        run_id,
+        len(state.get("patterns", [])),
+        smell_types,
+    )
     state["recommendations"] = recommend_for_patterns(state.get("patterns", []), smell_types)
+    logger.info(
+        "recommendation_agent done run_id=%s recommendations=%s",
+        run_id,
+        [f"{r.pattern}(p{r.priority})" for r in state.get("recommendations", [])],
+    )
     return state
 

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from agent.app.logging_utils import get_logger
 from agent.app.models.pattern import ArchitecturePattern, PatternConstraint
 from agent.app.state import Critique, GraphState
 
+logger = get_logger("agent.nodes.critic")
 
 def _get_signal_value(state: GraphState, key: str) -> Optional[float]:
     val = state.get("signals", {}).get(key)
@@ -289,7 +291,19 @@ def critic_node(state: GraphState) -> GraphState:
     Critic node: apply avoid_when constraints to surface risks/warnings.
     """
 
+    run_id = state.get("run_id", "n/a")
+    logger.info(
+        "critic_agent start run_id=%s patterns=%d recommendations=%d",
+        run_id,
+        len(state.get("patterns", [])),
+        len(state.get("recommendations", [])),
+    )
     # Critiques are generated automatically from pattern constraints + runtime state.
     state["critiques"] = critique_patterns(state, state.get("patterns", []))
+    logger.info(
+        "critic_agent done run_id=%s critiques=%d",
+        run_id,
+        len(state.get("critiques", [])),
+    )
     return state
 

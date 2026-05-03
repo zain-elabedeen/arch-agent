@@ -14,7 +14,12 @@ class Settings(BaseSettings):
     system is runnable in early prototyping environments.
     """
 
-    model_config = SettingsConfigDict(env_prefix="ARCHAGENT_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="ARCHAGENT_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     environment: Literal["dev", "test", "prod"] = "dev"
 
@@ -27,6 +32,14 @@ class Settings(BaseSettings):
 
     # Pattern catalog location for filesystem mode
     patterns_path: str = "agent/app/patterns"
+
+    # Reasoning layer (explanation-only) LLM configuration.
+    llm_reasoning_enabled: bool = True
+    llm_model: str = "gpt-4o-mini"
+    openai_api_key: Optional[str] = None
+
+    # Logging
+    log_level: str = "INFO"
 
 
 @lru_cache

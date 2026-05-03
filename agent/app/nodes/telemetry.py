@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from agent.app.logging_utils import get_logger
 from agent.app.state import GraphState, ServiceTopology
 
+logger = get_logger("agent.nodes.telemetry")
 
 # Simple aliases to tolerate common metric naming conventions.
 _SIGNAL_ALIASES: Dict[str, str] = {
@@ -36,6 +38,12 @@ def telemetry_node(state: GraphState) -> GraphState:
 
     raw_signals = state.get("raw_signals", state.get("signals", {}))
     raw_topology: Any = state.get("raw_topology", state.get("topology", {}))
+    run_id = state.get("run_id", "n/a")
+    logger.info(
+        "telemetry_agent start run_id=%s raw_signal_keys=%s",
+        run_id,
+        sorted(raw_signals.keys()),
+    )
 
     state["signals"] = normalize_signals(raw_signals)
 
@@ -43,5 +51,12 @@ def telemetry_node(state: GraphState) -> GraphState:
         state["topology"] = raw_topology.model_dump(by_alias=True)
     else:
         state["topology"] = ServiceTopology.model_validate(raw_topology).model_dump(by_alias=True)
+    logger.info(
+        "telemetry_agent done run_id=%s normalized_signal_keys=%s services=%d edges=%d",
+        run_id,
+        sorted(state["signals"].keys()),
+        len(state["topology"].get("services", [])),
+        len(state["topology"].get("edges", [])),
+    )
     return state
 
