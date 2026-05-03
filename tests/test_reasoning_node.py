@@ -1,4 +1,9 @@
-from agent.app.nodes.reasoning import build_explanation_report, reasoning_node
+from agent.app.nodes.reasoning import (
+    _build_llm_prompt,
+    _is_llm_output_consistent,
+    build_explanation_report,
+    reasoning_node,
+)
 from agent.app.state import Recommendation, Critique
 
 
@@ -43,3 +48,26 @@ def test_build_explanation_handles_empty_sections():
     report = build_explanation_report(state)
     assert "No architecture smells were detected" in report
     assert "No architecture changes are currently recommended" in report
+
+
+def test_llm_prompt_rewrites_deterministic_report_instead_of_raw_payload():
+    state = {
+        "smells": [{"type": "cpu_saturation", "severity": "high", "confidence": 0.91}],
+        "recommendations": [],
+        "critiques": [],
+    }
+    prompt = _build_llm_prompt(state)
+
+    assert "Rewrite the following report" in prompt
+    assert "## Runtime Architecture Report" in prompt
+    assert '"smells"' not in prompt
+
+
+def test_llm_output_consistency_rejects_false_no_smells_claim():
+    state = {
+        "smells": [{"type": "cpu_saturation", "severity": "high", "confidence": 0.91}],
+        "recommendations": [],
+        "critiques": [],
+    }
+    llm_output = "## Runtime Architecture Report\n\nNo smells detected."
+    assert _is_llm_output_consistent(state, llm_output) is False

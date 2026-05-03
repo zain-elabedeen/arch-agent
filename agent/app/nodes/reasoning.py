@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import List
 
 from agent.app.config import Settings
@@ -74,43 +73,35 @@ def build_explanation_report(state: GraphState) -> str:
 
 
 def _build_llm_prompt(state: GraphState) -> str:
-    payload = {
-        "smells": state.get("smells", []),
-        "recommendations": [
-            {
-                "pattern": r.pattern,
-                "solution": r.solution,
-                "impact": r.impact,
-                "effort": r.effort,
-                "priority": r.priority,
-                "reason": r.reason,
-            }
-            for r in state.get("recommendations", [])
-        ],
-        "critiques": [
-            {
-                "pattern_id": c.pattern_id,
-                "level": c.level,
-                "message": c.message,
-            }
-            for c in state.get("critiques", [])
-        ],
-    }
+    base_report = build_explanation_report(state)
     return (
-        "You are an explanation assistant for architecture recommendations.\n"
-        "Constraints:\n"
-        "- Do NOT detect smells.\n"
-        "- Do NOT decide architecture.\n"
-        "- Only explain/summarize the provided outputs.\n"
-        "- Keep report concise and practical for engineers.\n\n"
-        "Provided outputs (JSON):\n"
-        f"{json.dumps(payload, ensure_ascii=True)}\n\n"
-        "Produce markdown with sections:\n"
-        "1) Detected Smells\n"
-        "2) Recommended Architecture Moves\n"
-        "3) Constraints and Warnings\n"
-        "4) Short Summary\n"
+        "You are an assistant that improves clarity of engineering reports.\n"
+        "IMPORTANT RULES:\n"
+        "- Do NOT add new information.\n"
+        "- Do NOT remove information.\n"
+        "- Do NOT reinterpret data.\n"
+        "- Keep all original sections and factual claims.\n"
+        "- Only improve clarity, flow, and readability.\n\n"
+        "Rewrite the following report in clearer, more structured markdown:\n\n"
+        f"{base_report}"
     )
+
+
+def _is_llm_output_consistent(state: GraphState, llm_output: str) -> bool:
+    smells = state.get("smells", [])
+    recommendations = state.get("recommendations", [])
+    critiques = state.get("critiques", [])
+    report = llm_output.lower()
+
+    if smells and "no smells detected" in report:
+        return False
+    if critiques and "no constraints or warnings provided" in report:
+        return False
+    if critiques and "no constraint warnings were triggered" in report:
+        return False
+    if recommendations and "no architecture changes are currently recommended" in report:
+        return False
+    return True
 
 
 def _llm_report(state: GraphState, settings: Settings) -> str | None:
@@ -192,13 +183,19 @@ def reasoning_node(state: GraphState, settings: Settings | None = None) -> Graph
         len(state.get("recommendations", [])),
         len(state.get("critiques", [])),
     )
+    deterministic_report = build_explanation_report(state)
     if settings is not None:
         llm_output = _llm_report(state, settings)
         if llm_output:
-            state["explanation_report"] = llm_output
-            logger.info("reasoning_agent done run_id=%s source=llm", run_id)
-            return state
-    state["explanation_report"] = build_explanation_report(state)
+            if _is_llm_output_consistent(state, llm_output):
+                state["explanation_report"] = llm_output
+                logger.info("reasoning_agent done run_id=%s source=llm", run_id)
+                return state
+            logger.warning(
+                "reasoning_agent llm output inconsistent run_id=%s source=fallback_deterministic",
+                run_id,
+            )
+    state["explanation_report"] = deterministic_report
     logger.info(
         "reasoning_agent done run_id=%s source=deterministic_fallback report_chars=%d",
         run_id,
