@@ -23,6 +23,8 @@ def healthz() -> dict:
 
 @app.post("/v1/recommendations", response_model=RecommendationResponse)
 def recommend(req: RecommendationRequest) -> RecommendationResponse:
+    # Reload settings per request so .env edits are reflected without surprises.
+    get_settings.cache_clear()
     settings = get_settings()
     graph = build_graph(settings)
     run_id = str(uuid.uuid4())[:8]

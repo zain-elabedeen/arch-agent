@@ -35,8 +35,10 @@ class Settings(BaseSettings):
 
     # Reasoning layer (explanation-only) LLM configuration.
     llm_reasoning_enabled: bool = True
+    llm_provider: Literal["openai", "ollama"] = "openai"
     llm_model: str = "gpt-4o-mini"
     openai_api_key: Optional[str] = None
+    ollama_base_url: str = "http://localhost:11434/v1"
 
     # Logging
     log_level: str = "INFO"

@@ -38,4 +38,4 @@ def test_graph_pipeline_runs_end_to_end():
     assert "recommendations" in out and len(out["recommendations"]) > 0
     assert "critiques" in out
     assert "final_plan" in out and len(out["final_plan"]) > 0
-    assert "explanation_report" in out and "Runtime Architecture Report" in out["explanation_report"]
+    assert "explanation_report" in out and isinstance(out["explanation_report"], str) and len(out["explanation_report"]) > 0

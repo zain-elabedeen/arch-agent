@@ -114,12 +114,11 @@ def _build_llm_prompt(state: GraphState) -> str:
 
 
 def _llm_report(state: GraphState, settings: Settings) -> str | None:
-    if not settings.llm_reasoning_enabled or not settings.openai_api_key:
+    if not settings.llm_reasoning_enabled:
         logger.info(
-            "reasoning_agent llm disabled run_id=%s enabled=%s api_key_set=%s",
+            "reasoning_agent llm disabled run_id=%s enabled=%s",
             state.get("run_id", "n/a"),
             settings.llm_reasoning_enabled,
-            bool(settings.openai_api_key),
         )
         return None
     try:
@@ -129,7 +128,28 @@ def _llm_report(state: GraphState, settings: Settings) -> str | None:
         return None
 
     try:
-        client = OpenAI(api_key=settings.openai_api_key)
+        logger.info(
+            "reasoning_agent llm config run_id=%s provider=%s model=%s base_url=%s",
+            state.get("run_id", "n/a"),
+            settings.llm_provider,
+            settings.llm_model,
+            settings.ollama_base_url if settings.llm_provider == "ollama" else "default_openai",
+        )
+
+        if settings.llm_provider == "openai":
+            if not settings.openai_api_key:
+                logger.info(
+                    "reasoning_agent llm disabled run_id=%s provider=openai api_key_set=%s",
+                    state.get("run_id", "n/a"),
+                    bool(settings.openai_api_key),
+                )
+                return None
+            client = OpenAI(api_key=settings.openai_api_key)
+        else:
+            # Ollama exposes an OpenAI-compatible API at /v1.
+            # A placeholder key is accepted for local usage.
+            client = OpenAI(base_url=settings.ollama_base_url, api_key="ollama")
+
         resp = client.chat.completions.create(
             model=settings.llm_model,
             temperature=0.2,
@@ -143,14 +163,22 @@ def _llm_report(state: GraphState, settings: Settings) -> str | None:
         )
         content = (resp.choices[0].message.content or "").strip()
         logger.info(
-            "reasoning_agent llm success run_id=%s model=%s report_chars=%d",
+            "reasoning_agent llm success run_id=%s provider=%s model=%s report_chars=%d",
             state.get("run_id", "n/a"),
+            settings.llm_provider,
             settings.llm_model,
             len(content),
         )
         return content or None
-    except Exception:
-        logger.exception("reasoning_agent llm call failed run_id=%s", state.get("run_id", "n/a"))
+    except Exception as exc:
+        # Avoid noisy tracebacks for expected API failures (quota, auth, rate limits).
+        err_name = exc.__class__.__name__
+        logger.warning(
+            "reasoning_agent llm call failed run_id=%s error_type=%s message=%s",
+            state.get("run_id", "n/a"),
+            err_name,
+            str(exc),
+        )
         return None
 
 
