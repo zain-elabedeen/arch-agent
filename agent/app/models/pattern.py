@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -32,8 +32,8 @@ class ArchitecturePattern(BaseModel):
     category: str
     summary: str
 
-    use_when: List[PatternConstraint] = Field(default_factory=list)
-    avoid_when: List[PatternConstraint] = Field(default_factory=list)
+    use_when: List[Union[PatternConstraint, str]] = Field(default_factory=list)
+    avoid_when: List[Union[PatternConstraint, str]] = Field(default_factory=list)
 
     # Concrete, copy/paste-able suggestions. MVP keeps these as short strings.
     solutions: List[str] = Field(default_factory=list)

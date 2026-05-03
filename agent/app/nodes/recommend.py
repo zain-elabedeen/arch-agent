@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Dict, List
 
 from agent.app.models.pattern import ArchitecturePattern
+from agent.app.services.pattern_loader import SMELL_TO_PATTERN_MAP
 from agent.app.state import GraphState, Recommendation
 
 
@@ -20,22 +21,41 @@ def _pattern_score(p: ArchitecturePattern) -> float:
     )
 
 
-def recommend_for_patterns(patterns: List[ArchitecturePattern], limit: int = 6) -> List[Recommendation]:
-    ordered = sorted(patterns, key=_pattern_score, reverse=True)[:limit]
+def _pattern_priority(smell_types: List[str], pattern_id: str) -> tuple[int, str]:
+    best_priority = 999
+    best_reason = ""
+    for smell in smell_types:
+        for mapped in SMELL_TO_PATTERN_MAP.get(smell, []):
+            if mapped["pattern"] == pattern_id and mapped["priority"] < best_priority:
+                best_priority = mapped["priority"]
+                best_reason = mapped["reason"]
+    return best_priority, best_reason
+
+
+def recommend_for_patterns(
+    patterns: List[ArchitecturePattern], smell_types: List[str], limit: int = 6
+) -> List[Recommendation]:
+    ordered = sorted(patterns, key=_pattern_score, reverse=True)
     recs: List[Recommendation] = []
     for p in ordered:
+        priority, reason = _pattern_priority(smell_types, p.id)
+        if priority == 999:
+            # Recommendation agent stays grounded in smell->pattern mapping.
+            continue
+        solution = p.solutions[0] if p.solutions else p.summary
         recs.append(
             Recommendation(
-                pattern_id=p.id,
-                pattern_name=p.name,
-                summary=p.summary,
-                solutions=list(p.solutions),
-                tradeoffs=list(p.tradeoffs),
+                pattern=p.id,
+                solution=solution,
                 impact=p.impact,
                 effort=p.effort,
-                confidence=p.confidence,
+                priority=priority,
+                reason=reason,
             )
         )
+        if len(recs) >= limit:
+            break
+    recs.sort(key=lambda r: (r.priority, -_IMPACT_SCORE[r.impact], _EFFORT_SCORE[r.effort]))
     return recs
 
 
@@ -44,6 +64,7 @@ def recommend_node(state: GraphState) -> GraphState:
     Recommendation node: convert curated patterns into concrete recommendations.
     """
 
-    state["recommendations"] = recommend_for_patterns(state.get("patterns", []))
+    smell_types = [s.get("type", "") for s in state.get("smells", [])]
+    state["recommendations"] = recommend_for_patterns(state.get("patterns", []), smell_types)
     return state
 

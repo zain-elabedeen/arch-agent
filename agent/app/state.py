@@ -51,14 +51,12 @@ class Smell(BaseModel):
 
 
 class Recommendation(BaseModel):
-    pattern_id: str
-    pattern_name: str
-    summary: str
-    solutions: List[str]
-    tradeoffs: List[str]
+    pattern: str
+    solution: str
     impact: Impact
     effort: Effort
-    confidence: Confidence
+    priority: int = 99
+    reason: str = ""
 
 
 class Critique(BaseModel):
