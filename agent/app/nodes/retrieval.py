@@ -22,7 +22,7 @@ def retrieval_node(state: GraphState, settings: Settings) -> GraphState:
     """
 
     store = load_pattern_store(settings)
-    smell_types = [s.type for s in state.smells]
-    state.patterns = retrieve_patterns_for_smells(store, smell_types)
+    smell_types = [s.get("type", "") for s in state.get("smells", [])]
+    state["patterns"] = retrieve_patterns_for_smells(store, smell_types)
     return state
 

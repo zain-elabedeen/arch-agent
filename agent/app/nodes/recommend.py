@@ -44,6 +44,6 @@ def recommend_node(state: GraphState) -> GraphState:
     Recommendation node: convert curated patterns into concrete recommendations.
     """
 
-    state.recommendations = recommend_for_patterns(state.patterns)
+    state["recommendations"] = recommend_for_patterns(state.get("patterns", []))
     return state
 

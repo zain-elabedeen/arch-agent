@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
@@ -46,7 +46,7 @@ class ServiceTopology(BaseModel):
 class Smell(BaseModel):
     type: str
     severity: Impact = "medium"
-    confidence: Confidence = "medium"
+    confidence: float = 0.8
     evidence: Dict[str, float | str] = Field(default_factory=dict)
 
 
@@ -89,24 +89,17 @@ class RecommendationResponse(BaseModel):
     plan: List[PlanStep]
 
 
-class GraphState(BaseModel):
-    """
-    State flowing through the LangGraph pipeline.
+class GraphState(TypedDict, total=False):
+    # Input aliases for telemetry stage
+    raw_signals: Dict[str, float]
+    raw_topology: Dict[str, Any]
 
-    We keep it explicitly typed so nodes can be unit-tested without the graph
-    runtime and so API responses remain stable.
-    """
-
-    raw_signals: Dict[str, float] = Field(default_factory=dict)
-    raw_topology: ServiceTopology = Field(default_factory=ServiceTopology)
-
-    signals: TelemetrySignals = Field(default_factory=TelemetrySignals)
-    topology: ServiceTopology = Field(default_factory=ServiceTopology)
-
-    smells: List[Smell] = Field(default_factory=list)
-    patterns: List[ArchitecturePattern] = Field(default_factory=list)
-
-    recommendations: List[Recommendation] = Field(default_factory=list)
-    critiques: List[Critique] = Field(default_factory=list)
-    plan: List[PlanStep] = Field(default_factory=list)
+    # Required MVP pipeline state fields
+    signals: Dict[str, float]
+    topology: Dict[str, Any]
+    smells: List[Dict[str, Any]]
+    patterns: List[ArchitecturePattern]
+    recommendations: List[Recommendation]
+    critiques: List[Critique]
+    final_plan: List[PlanStep]
 

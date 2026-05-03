@@ -20,15 +20,23 @@ def recommend(req: RecommendationRequest) -> RecommendationResponse:
     settings = get_settings()
     graph = build_graph(settings)
 
-    state = GraphState(raw_signals=req.signals, raw_topology=req.topology)
-    # LangGraph returns a plain dict state by default; validate back into our
-    # typed state model to keep API output stable and testable.
-    out = GraphState.model_validate(graph.invoke(state.model_dump(by_alias=True)))
+    state: GraphState = {
+        "raw_signals": dict(req.signals),
+        "raw_topology": req.topology.model_dump(by_alias=True),
+        "signals": {},
+        "topology": {},
+        "smells": [],
+        "patterns": [],
+        "recommendations": [],
+        "critiques": [],
+        "final_plan": [],
+    }
+    out = graph.invoke(state)
 
     return RecommendationResponse(
-        smells=out.smells,
-        recommendations=out.recommendations,
-        critiques=out.critiques,
-        plan=out.plan,
+        smells=out.get("smells", []),
+        recommendations=out.get("recommendations", []),
+        critiques=out.get("critiques", []),
+        plan=out.get("final_plan", []),
     )
 

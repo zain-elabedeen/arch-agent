@@ -23,20 +23,20 @@ def build_graph(settings: Settings):
 
     g = StateGraph(GraphState)
 
-    g.add_node("telemetry", telemetry_node)
-    g.add_node("smells", smells_node)
-    g.add_node("retrieval", lambda s: retrieval_node(s, settings))
-    g.add_node("recommend", recommend_node)
-    g.add_node("critic", critic_node)
-    g.add_node("planner", planner_node)
+    g.add_node("telemetry_agent", telemetry_node)
+    g.add_node("smell_agent", smells_node)
+    g.add_node("retrieval_agent", lambda s: retrieval_node(s, settings))
+    g.add_node("recommendation_agent", recommend_node)
+    g.add_node("critic_agent", critic_node)
+    g.add_node("planner_agent", planner_node)
 
-    g.set_entry_point("telemetry")
-    g.add_edge("telemetry", "smells")
-    g.add_edge("smells", "retrieval")
-    g.add_edge("retrieval", "recommend")
-    g.add_edge("recommend", "critic")
-    g.add_edge("critic", "planner")
-    g.add_edge("planner", END)
+    g.set_entry_point("telemetry_agent")
+    g.add_edge("telemetry_agent", "smell_agent")
+    g.add_edge("smell_agent", "retrieval_agent")
+    g.add_edge("retrieval_agent", "recommendation_agent")
+    g.add_edge("recommendation_agent", "critic_agent")
+    g.add_edge("critic_agent", "planner_agent")
+    g.add_edge("planner_agent", END)
 
     return g.compile()
 

@@ -42,6 +42,6 @@ def build_plan(recommendations: List[Recommendation]) -> List[PlanStep]:
 
 
 def planner_node(state: GraphState) -> GraphState:
-    state.plan = build_plan(state.recommendations)
+    state["final_plan"] = build_plan(state.get("recommendations", []))
     return state
 

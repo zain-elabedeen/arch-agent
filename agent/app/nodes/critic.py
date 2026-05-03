@@ -7,23 +7,25 @@ from agent.app.state import Critique, GraphState
 
 
 def _get_signal_value(state: GraphState, key: str) -> Optional[float]:
-    val = getattr(state.signals, key, None)
+    val = state.get("signals", {}).get(key)
     if val is None:
         # allow looking up raw metric keys too
-        raw = state.raw_signals.get(key)
+        raw = state.get("raw_signals", {}).get(key)
         return float(raw) if raw is not None else None
     return float(val)
 
 
 def _topology_has(state: GraphState, key: str) -> bool:
+    topology = state.get("topology", {})
+    edges = topology.get("edges", [])
     if key == "has_db_edge":
-        return any(e.type == "db" for e in state.topology.edges)
+        return any(e.get("type") == "db" for e in edges)
     if key == "has_queue_edge":
-        return any(e.type == "queue" for e in state.topology.edges)
+        return any(e.get("type") == "queue" for e in edges)
     if key == "has_critical_store":
-        return len(state.topology.critical_stores) > 0
+        return len(topology.get("critical_stores", [])) > 0
     if key == "has_critical_queue":
-        return len(state.topology.critical_queues) > 0
+        return len(topology.get("critical_queues", [])) > 0
     return False
 
 
@@ -83,6 +85,6 @@ def critic_node(state: GraphState) -> GraphState:
     Critic node: apply avoid_when constraints to surface risks/warnings.
     """
 
-    state.critiques = critique_patterns(state, state.patterns)
+    state["critiques"] = critique_patterns(state, state.get("patterns", []))
     return state
 

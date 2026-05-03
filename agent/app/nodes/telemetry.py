@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Any, Dict
 
-from agent.app.state import GraphState, ServiceTopology, TelemetrySignals
+from agent.app.state import GraphState, ServiceTopology
 
 
 # Simple aliases to tolerate common metric naming conventions.
@@ -21,19 +21,12 @@ _SIGNAL_ALIASES: Dict[str, str] = {
 }
 
 
-def normalize_signals(raw: Dict[str, float]) -> TelemetrySignals:
+def normalize_signals(raw: Dict[str, float]) -> Dict[str, float]:
     normalized: Dict[str, float] = {}
     for k, v in raw.items():
         key = _SIGNAL_ALIASES.get(k, k)
-        normalized[key] = v
-
-    # Pydantic will ignore unknown fields by default? (In BaseModel v2 it errors
-    # if extra is forbidden; we keep model default, so only set known attrs.)
-    sig = TelemetrySignals()
-    for field in sig.model_fields.keys():
-        if field in normalized:
-            setattr(sig, field, float(normalized[field]))
-    return sig
+        normalized[key] = float(v)
+    return normalized
 
 
 def telemetry_node(state: GraphState) -> GraphState:
@@ -41,7 +34,14 @@ def telemetry_node(state: GraphState) -> GraphState:
     Telemetry node: normalize raw input into canonical signals + topology.
     """
 
-    state.signals = normalize_signals(state.raw_signals)
-    state.topology = ServiceTopology.model_validate(state.raw_topology.model_dump(by_alias=True))
+    raw_signals = state.get("raw_signals", state.get("signals", {}))
+    raw_topology: Any = state.get("raw_topology", state.get("topology", {}))
+
+    state["signals"] = normalize_signals(raw_signals)
+
+    if isinstance(raw_topology, ServiceTopology):
+        state["topology"] = raw_topology.model_dump(by_alias=True)
+    else:
+        state["topology"] = ServiceTopology.model_validate(raw_topology).model_dump(by_alias=True)
     return state
 
