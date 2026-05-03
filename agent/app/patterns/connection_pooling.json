@@ -1,0 +1,38 @@
+{
+  "id": "connection_pooling",
+  "name": "Connection Pooling",
+  "category": "scaling",
+  "summary": "Reuse database connections to reduce connection churn and latency spikes under concurrency.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "request_latency_p95_ms",
+      "operator": "gte",
+      "value": 300,
+      "message": "Latency spikes under load can come from connection churn."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Introduce a connection pooler",
+    "Reuse database connections"
+  ],
+  "tradeoffs": [
+    "Pool misconfiguration risks",
+    "Resource contention"
+  ],
+  "impact": "medium",
+  "effort": "low",
+  "confidence": "medium",
+  "tags": [
+    "database",
+    "concurrency"
+  ],
+  "metadata": {
+    "signals": [
+      "connection spikes",
+      "db connection errors",
+      "latency spikes under load"
+    ]
+  }
+}

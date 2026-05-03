@@ -1,0 +1,47 @@
+{
+  "id": "backpressure",
+  "name": "Backpressure Mechanism",
+  "category": "async_processing",
+  "summary": "Protect downstream systems by controlling intake rate and shedding excess load during overload.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "queue_backlog",
+      "operator": "gte",
+      "value": 800,
+      "message": "Queue growth indicates producer rate exceeds processing capacity."
+    },
+    {
+      "kind": "signal",
+      "key": "error_rate",
+      "operator": "gte",
+      "value": 0.05,
+      "message": "Timeouts and failures often rise when systems are overloaded."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Limit request intake",
+    "Apply rate limiting",
+    "Shed excess load gracefully"
+  ],
+  "tradeoffs": [
+    "Request rejection",
+    "User experience degradation"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": [
+    "backpressure",
+    "queue",
+    "concurrency"
+  ],
+  "metadata": {
+    "signals": [
+      "queue growth",
+      "timeouts",
+      "consumer lag"
+    ]
+  }
+}

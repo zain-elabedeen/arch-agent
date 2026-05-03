@@ -1,0 +1,53 @@
+{
+  "id": "database_sharding",
+  "name": "Database Sharding",
+  "category": "data",
+  "summary": "Partition writes and dataset growth across shards to remove single-database scale bottlenecks.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "db_latency_p95_ms",
+      "operator": "gte",
+      "value": 350,
+      "message": "High DB latency under write pressure indicates scaling limits."
+    },
+    {
+      "kind": "signal",
+      "key": "cpu_utilization",
+      "operator": "gte",
+      "value": 0.85,
+      "message": "Sustained DB CPU saturation suggests vertical scaling ceiling."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "topology",
+      "key": "join_heavy_queries",
+      "operator": "exists",
+      "message": "Join-heavy access patterns are costly across shards."
+    }
+  ],
+  "solutions": [
+    "Partition data across multiple databases",
+    "Shard by user or tenant id"
+  ],
+  "tradeoffs": [
+    "Increased complexity",
+    "Cross-shard queries are difficult",
+    "Data consistency challenges"
+  ],
+  "impact": "high",
+  "effort": "high",
+  "confidence": "medium",
+  "tags": [
+    "database",
+    "write-scaling"
+  ],
+  "metadata": {
+    "signals": [
+      "high write latency",
+      "db cpu saturation",
+      "slow insert/update operations"
+    ]
+  }
+}

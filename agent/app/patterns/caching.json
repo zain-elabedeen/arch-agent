@@ -1,0 +1,56 @@
+{
+  "id": "caching",
+  "name": "Caching Layer",
+  "category": "scaling",
+  "summary": "Reduce repeated read latency and database load by caching high-frequency data paths.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "request_latency_p95_ms",
+      "operator": "gte",
+      "value": 350,
+      "message": "High p95 request latency on read paths can benefit from caching."
+    },
+    {
+      "kind": "signal",
+      "key": "db_latency_p95_ms",
+      "operator": "gte",
+      "value": 250,
+      "message": "Expensive reads indicate potential cache gains."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "signal",
+      "key": "error_rate",
+      "operator": "gte",
+      "value": 0.1,
+      "message": "Stability issues should be addressed before introducing cache complexity."
+    }
+  ],
+  "solutions": [
+    "Introduce in-memory cache (e.g., Redis)",
+    "Cache frequently accessed data",
+    "Use TTL-based invalidation"
+  ],
+  "tradeoffs": [
+    "Cache invalidation complexity",
+    "Stale data risk",
+    "Memory overhead"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": [
+    "caching",
+    "database",
+    "read-scaling"
+  ],
+  "metadata": {
+    "signals": [
+      "repeated queries",
+      "high read latency",
+      "high database load"
+    ]
+  }
+}

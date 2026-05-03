@@ -1,0 +1,39 @@
+{
+  "id": "queue_backpressure",
+  "name": "Backpressure + Bounded Concurrency",
+  "category": "resilience",
+  "summary": "Introduce backpressure and bounded concurrency to prevent queue growth and cascading overload.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "queue_backlog",
+      "operator": "gte",
+      "value": 5000,
+      "message": "Large queue backlog suggests consumer throughput mismatch or unbounded production."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "signal",
+      "key": "request_latency_p95_ms",
+      "operator": "gte",
+      "value": 1500,
+      "message": "Very high request latency suggests end-to-end overload; ensure producers also degrade gracefully (rate limiting)."
+    }
+  ],
+  "solutions": [
+    "Cap consumer concurrency and implement adaptive scaling based on lag",
+    "Apply producer rate limiting / shedding to keep the system stable",
+    "Add a dead-letter queue (DLQ) and poison-message handling"
+  ],
+  "tradeoffs": [
+    "Throughput may drop under load (by design)",
+    "Requires clear retry/DLQ semantics",
+    "May surface upstream rate limiting needs"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": ["queue", "backpressure", "concurrency", "dlq"]
+}
+

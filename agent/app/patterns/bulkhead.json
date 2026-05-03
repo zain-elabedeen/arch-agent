@@ -1,0 +1,38 @@
+{
+  "id": "bulkhead",
+  "name": "Bulkhead Isolation",
+  "category": "resilience",
+  "summary": "Contain failure domains by isolating concurrency and resource pools per dependency or component.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "error_rate",
+      "operator": "gte",
+      "value": 0.05,
+      "message": "Rising cross-service failures suggest blast-radius control is needed."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Isolate resources (pools/queues) by component",
+    "Limit concurrency per dependency"
+  ],
+  "tradeoffs": [
+    "Resource underutilization",
+    "Configuration complexity"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "medium",
+  "tags": [
+    "bulkheads",
+    "timeouts",
+    "resilience"
+  ],
+  "metadata": {
+    "signals": [
+      "cascading failures",
+      "resource exhaustion across services"
+    ]
+  }
+}

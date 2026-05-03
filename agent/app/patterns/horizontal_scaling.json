@@ -1,0 +1,52 @@
+{
+  "id": "horizontal_scaling",
+  "name": "Horizontal Scaling",
+  "category": "scaling",
+  "summary": "Scale out service instances to absorb sustained demand and reduce saturation.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "cpu_utilization",
+      "operator": "gte",
+      "value": 0.8,
+      "message": "High CPU indicates need for additional instances."
+    },
+    {
+      "kind": "signal",
+      "key": "memory_pressure",
+      "operator": "gte",
+      "value": 0.8,
+      "message": "Memory pressure can be relieved through scale-out."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "topology",
+      "key": "stateful_tightly_coupled",
+      "operator": "exists",
+      "message": "Stateful coupling can make horizontal scale ineffective without redesign."
+    }
+  ],
+  "solutions": [
+    "Add more instances",
+    "Enable autoscaling where appropriate"
+  ],
+  "tradeoffs": [
+    "Infrastructure cost",
+    "State management complexity"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": [
+    "autoscaling",
+    "right-sizing"
+  ],
+  "metadata": {
+    "signals": [
+      "cpu > 80%",
+      "memory pressure",
+      "increased latency"
+    ]
+  }
+}

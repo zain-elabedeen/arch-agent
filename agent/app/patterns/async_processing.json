@@ -1,0 +1,46 @@
+{
+  "id": "async_processing",
+  "name": "Asynchronous Processing",
+  "category": "async_processing",
+  "summary": "Offload blocking work to queues and workers to protect synchronous endpoint latency.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "request_latency_p95_ms",
+      "operator": "gte",
+      "value": 350,
+      "message": "Latency-sensitive endpoints can improve by offloading long tasks."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "topology",
+      "key": "strict_consistency_required",
+      "operator": "exists",
+      "message": "Strong consistency requirements may conflict with async workflows."
+    }
+  ],
+  "solutions": [
+    "Move tasks to background processing",
+    "Use message queues and workers"
+  ],
+  "tradeoffs": [
+    "Eventual consistency",
+    "Debugging complexity"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": [
+    "queue",
+    "concurrency",
+    "backpressure"
+  ],
+  "metadata": {
+    "signals": [
+      "high response latency",
+      "timeouts",
+      "blocking operations"
+    ]
+  }
+}

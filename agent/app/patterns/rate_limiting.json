@@ -1,0 +1,45 @@
+{
+  "id": "rate_limiting",
+  "name": "Rate Limiting",
+  "category": "resilience",
+  "summary": "Protect critical resources and reduce overload risk by enforcing request quotas and throttles.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "cpu_utilization",
+      "operator": "gte",
+      "value": 0.85,
+      "message": "Resource pressure under spikes can be mitigated with rate controls."
+    },
+    {
+      "kind": "signal",
+      "key": "error_rate",
+      "operator": "gte",
+      "value": 0.05,
+      "message": "Rising errors under load indicate demand shaping is needed."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Limit requests per user/service",
+    "Apply throttling and quotas"
+  ],
+  "tradeoffs": [
+    "Request rejection",
+    "User dissatisfaction"
+  ],
+  "impact": "medium",
+  "effort": "low",
+  "confidence": "high",
+  "tags": [
+    "backpressure",
+    "resilience"
+  ],
+  "metadata": {
+    "signals": [
+      "traffic spikes",
+      "resource exhaustion",
+      "error rates increasing"
+    ]
+  }
+}

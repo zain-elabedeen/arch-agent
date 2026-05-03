@@ -1,0 +1,36 @@
+{
+  "id": "api_gateway",
+  "name": "API Gateway",
+  "category": "coupling",
+  "summary": "Centralize cross-cutting concerns for multi-service client access through a gateway layer.",
+  "use_when": [
+    {
+      "kind": "topology",
+      "key": "multiple_public_services",
+      "operator": "exists",
+      "message": "Multiple client-exposed services benefit from centralized ingress and policy handling."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Introduce an API gateway",
+    "Centralize routing, auth, and throttling"
+  ],
+  "tradeoffs": [
+    "Potential single point of failure",
+    "Latency overhead"
+  ],
+  "impact": "medium",
+  "effort": "medium",
+  "confidence": "medium",
+  "tags": [
+    "api-gateway",
+    "decoupling"
+  ],
+  "metadata": {
+    "signals": [
+      "duplicate client logic across services",
+      "inconsistent auth/routing"
+    ]
+  }
+}

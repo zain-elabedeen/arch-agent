@@ -1,0 +1,38 @@
+{
+  "id": "queue_partitioning",
+  "name": "Queue Partitioning",
+  "category": "async_processing",
+  "summary": "Increase queue throughput by partitioning streams and scaling consumers horizontally.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "queue_backlog",
+      "operator": "gte",
+      "value": 1000,
+      "message": "Growing backlog indicates consumer throughput is insufficient."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Partition the queue (e.g., by key)",
+    "Scale consumers horizontally"
+  ],
+  "tradeoffs": [
+    "Ordering guarantees may be reduced",
+    "Increased operational complexity"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": [
+    "queue",
+    "concurrency"
+  ],
+  "metadata": {
+    "signals": [
+      "queue backlog > threshold",
+      "slow message processing",
+      "consumer lag increasing"
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "cache_aside",
+  "name": "Cache-Aside Read Caching",
+  "category": "performance",
+  "summary": "Introduce a cache-aside strategy to reduce repeated reads against hot data stores and lower end-to-end latency.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "db_latency_p95_ms",
+      "operator": "gte",
+      "value": 250,
+      "message": "Database p95 latency is elevated; caching can reduce read pressure."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "signal",
+      "key": "error_rate",
+      "operator": "gte",
+      "value": 0.05,
+      "message": "High error rate suggests instability; address correctness/reliability before introducing caching complexity."
+    }
+  ],
+  "solutions": [
+    "Cache hot read paths with TTL and explicit cache invalidation strategy",
+    "Add request coalescing to prevent cache stampedes",
+    "Instrument cache hit rate and tail latency impact"
+  ],
+  "tradeoffs": [
+    "Staleness and invalidation complexity",
+    "Cache stampedes if not guarded",
+    "Operational overhead (capacity, eviction, monitoring)"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": ["caching", "database", "read-scaling"]
+}
+

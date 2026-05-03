@@ -1,0 +1,38 @@
+{
+  "id": "hpa_autoscaling",
+  "name": "Horizontal Pod Autoscaling (HPA)",
+  "category": "scalability",
+  "summary": "Use horizontal autoscaling to respond to CPU pressure and request load while keeping latency within SLOs.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "cpu_utilization",
+      "operator": "gte",
+      "value": 0.85,
+      "message": "Sustained high CPU suggests scale-out can reduce saturation."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "topology",
+      "key": "has_db_edge",
+      "operator": "exists",
+      "message": "If DB is a critical dependency, scaling app pods may amplify DB load unless guarded."
+    }
+  ],
+  "solutions": [
+    "Enable HPA using CPU (and optionally latency/custom metrics) targets",
+    "Set sane max replicas and scale-up policies to avoid sudden load spikes",
+    "Confirm downstream dependencies (DB, caches) can handle increased concurrency"
+  ],
+  "tradeoffs": [
+    "Can shift bottlenecks to downstream services",
+    "Requires correct requests/limits and metrics",
+    "Autoscaling policies need tuning"
+  ],
+  "impact": "medium",
+  "effort": "low",
+  "confidence": "high",
+  "tags": ["autoscaling", "right-sizing"]
+}
+

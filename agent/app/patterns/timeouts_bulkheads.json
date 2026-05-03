@@ -1,0 +1,39 @@
+{
+  "id": "timeouts_bulkheads",
+  "name": "Timeouts + Bulkheads",
+  "category": "resilience",
+  "summary": "Add timeouts and bulkheads to prevent slow dependencies from consuming all resources and increasing tail latency.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "request_latency_p95_ms",
+      "operator": "gte",
+      "value": 600,
+      "message": "Elevated request latency benefits from strict timeouts and isolation."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "signal",
+      "key": "error_rate",
+      "operator": "gte",
+      "value": 0.12,
+      "message": "If errors are already very high, verify upstream retries and dependency availability to avoid amplifying failures."
+    }
+  ],
+  "solutions": [
+    "Set explicit client and server timeouts for all outbound calls",
+    "Use separate connection pools / worker pools per dependency (bulkheads)",
+    "Add retry budgets and circuit breakers for flaky dependencies"
+  ],
+  "tradeoffs": [
+    "More failure modes (timeouts) require fallback behavior",
+    "Risk of retry storms if misconfigured",
+    "Needs careful SLO-driven tuning"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": ["timeouts", "bulkheads", "caching"]
+}
+

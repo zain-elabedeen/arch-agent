@@ -1,0 +1,45 @@
+{
+  "id": "retry_with_backoff",
+  "name": "Retry with Exponential Backoff",
+  "category": "resilience",
+  "summary": "Improve resilience to transient failures using bounded retries with exponential backoff and jitter.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "error_rate",
+      "operator": "gte",
+      "value": 0.03,
+      "message": "Intermittent failures can be mitigated with controlled retries."
+    }
+  ],
+  "avoid_when": [
+    {
+      "kind": "signal",
+      "key": "cpu_utilization",
+      "operator": "gte",
+      "value": 0.9,
+      "message": "Retrying during saturation can amplify overload."
+    }
+  ],
+  "solutions": [
+    "Retry failed requests with delay",
+    "Use exponential backoff and jitter"
+  ],
+  "tradeoffs": [
+    "Increased latency",
+    "Potential load amplification"
+  ],
+  "impact": "medium",
+  "effort": "low",
+  "confidence": "medium",
+  "tags": [
+    "timeouts",
+    "resilience"
+  ],
+  "metadata": {
+    "signals": [
+      "intermittent failures",
+      "timeout errors"
+    ]
+  }
+}

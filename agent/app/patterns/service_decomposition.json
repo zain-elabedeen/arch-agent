@@ -1,0 +1,44 @@
+{
+  "id": "service_decomposition",
+  "name": "Service Decomposition",
+  "category": "coupling",
+  "summary": "Reduce tight coupling and delivery friction by splitting large services along ownership boundaries.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "request_latency_p95_ms",
+      "operator": "gte",
+      "value": 400,
+      "message": "Large service complexity often drives unstable latency and deployment risk."
+    },
+    {
+      "kind": "topology",
+      "key": "high_dependency_degree",
+      "operator": "exists",
+      "message": "High dependency degree is a coupling risk indicator."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Split the service into smaller services",
+    "Separate concerns and ownership boundaries"
+  ],
+  "tradeoffs": [
+    "Increased distributed-systems complexity",
+    "Network overhead"
+  ],
+  "impact": "high",
+  "effort": "high",
+  "confidence": "medium",
+  "tags": [
+    "decoupling",
+    "domain"
+  ],
+  "metadata": {
+    "signals": [
+      "many dependencies",
+      "slow deployments",
+      "frequent failures"
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "load_balancing",
+  "name": "Load Balancing",
+  "category": "scaling",
+  "summary": "Distribute traffic across instances to reduce hotspots and latency variance.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "cpu_utilization",
+      "operator": "gte",
+      "value": 0.75,
+      "message": "Instance saturation often indicates uneven traffic distribution."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Distribute traffic across instances",
+    "Use least-connections / round-robin strategies"
+  ],
+  "tradeoffs": [
+    "Configuration complexity",
+    "Session handling challenges"
+  ],
+  "impact": "high",
+  "effort": "low",
+  "confidence": "high",
+  "tags": [
+    "autoscaling",
+    "right-sizing"
+  ],
+  "metadata": {
+    "signals": [
+      "cpu imbalance across instances",
+      "latency variance"
+    ]
+  }
+}

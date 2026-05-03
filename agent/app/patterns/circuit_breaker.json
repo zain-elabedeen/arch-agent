@@ -1,0 +1,39 @@
+{
+  "id": "circuit_breaker",
+  "name": "Circuit Breaker",
+  "category": "resilience",
+  "summary": "Fail fast on unstable dependencies to prevent retry storms and cascading failures.",
+  "use_when": [
+    {
+      "kind": "signal",
+      "key": "error_rate",
+      "operator": "gte",
+      "value": 0.06,
+      "message": "Elevated downstream failure rate suggests dependency instability."
+    }
+  ],
+  "avoid_when": [],
+  "solutions": [
+    "Fail fast on failing services",
+    "Open the circuit after an error threshold"
+  ],
+  "tradeoffs": [
+    "Temporary service degradation",
+    "Fallback logic required"
+  ],
+  "impact": "high",
+  "effort": "medium",
+  "confidence": "high",
+  "tags": [
+    "timeouts",
+    "bulkheads",
+    "resilience"
+  ],
+  "metadata": {
+    "signals": [
+      "error rate increase",
+      "timeouts",
+      "retry storms"
+    ]
+  }
+}
