@@ -1,3 +1,11 @@
+"""
+Application settings (``ARCHAGENT_*`` env vars).
+
+Environment-specific defaults and optional LLM keys for the reasoning agent live
+here; ``main.recommend`` clears the settings cache and passes fresh ``Settings``
+into ``build_graph`` each request.
+"""
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -8,10 +16,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """
-    Configuration is intentionally small for the MVP.
+    Small surface area for the MVP: pattern store mode, paths, logging, LLM toggles.
 
-    We design for PostgreSQL, but allow a filesystem/in-memory fallback so the
-    system is runnable in early prototyping environments.
+    ``pattern_store=postgres`` is reserved; only ``filesystem`` is implemented today.
     """
 
     model_config = SettingsConfigDict(
@@ -46,5 +53,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Singleton settings from env; call ``.cache_clear()`` before reload (see ``main``)."""
     return Settings()
 

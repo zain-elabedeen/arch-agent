@@ -1,3 +1,11 @@
+"""
+Reasoning / explanation agent (terminal pipeline stage).
+
+Produces ``explanation_report`` markdown from smells, recommendations, and
+critiques. An optional LLM may **rephrase** the deterministic report only; if the
+model invents or drops facts, output is rejected in favor of the template report.
+"""
+
 from __future__ import annotations
 
 from typing import List
@@ -9,6 +17,7 @@ from agent.app.state import Critique, GraphState, Recommendation
 logger = get_logger("agent.nodes.reasoning")
 
 def _smell_lines(smells: List[dict]) -> List[str]:
+    """Format smell dicts as markdown bullet lines (or a single empty-state line)."""
     if not smells:
         return ["- No architecture smells were detected from the provided runtime signals."]
     lines: List[str] = []
@@ -21,6 +30,7 @@ def _smell_lines(smells: List[dict]) -> List[str]:
 
 
 def _recommendation_lines(recommendations: List[Recommendation]) -> List[str]:
+    """Format recommendations as markdown bullets for the deterministic report."""
     if not recommendations:
         return ["- No architecture changes are currently recommended."]
     lines: List[str] = []
@@ -33,6 +43,7 @@ def _recommendation_lines(recommendations: List[Recommendation]) -> List[str]:
 
 
 def _critique_lines(critiques: List[Critique]) -> List[str]:
+    """Format critiques as markdown bullets."""
     if not critiques:
         return ["- No constraint warnings were triggered by current runtime context."]
     lines: List[str] = []
@@ -73,6 +84,7 @@ def build_explanation_report(state: GraphState) -> str:
 
 
 def _build_llm_prompt(state: GraphState) -> str:
+    """User message instructing the model to rewrite without adding or removing facts."""
     base_report = build_explanation_report(state)
     return (
         "You are an assistant that improves clarity of engineering reports.\n"
@@ -88,6 +100,10 @@ def _build_llm_prompt(state: GraphState) -> str:
 
 
 def _is_llm_output_consistent(state: GraphState, llm_output: str) -> bool:
+    """
+    Reject LLM text that contradicts empty/non-empty sections (e.g. claims “no smells”
+    when smells exist). Keeps explanation faithful to upstream agents.
+    """
     smells = state.get("smells", [])
     recommendations = state.get("recommendations", [])
     critiques = state.get("critiques", [])
@@ -105,6 +121,10 @@ def _is_llm_output_consistent(state: GraphState, llm_output: str) -> bool:
 
 
 def _llm_report(state: GraphState, settings: Settings) -> str | None:
+    """
+    Call OpenAI-compatible chat completion to polish the report; return None on
+    disabled config, missing SDK/key, or recoverable API errors (caller falls back).
+    """
     if not settings.llm_reasoning_enabled:
         logger.info(
             "reasoning_agent llm disabled run_id=%s enabled=%s",
@@ -174,7 +194,7 @@ def _llm_report(state: GraphState, settings: Settings) -> str | None:
 
 
 def reasoning_node(state: GraphState, settings: Settings | None = None) -> GraphState:
-    # LLM is used for explanation when configured; deterministic fallback keeps MVP runnable.
+    """Attach ``explanation_report``; prefer LLM polish when safe, else deterministic."""
     run_id = state.get("run_id", "n/a")
     logger.info(
         "reasoning_agent start run_id=%s smells=%d recommendations=%d critiques=%d",

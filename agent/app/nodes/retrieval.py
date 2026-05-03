@@ -1,3 +1,9 @@
+"""
+Retrieval agent: load the pattern store and select patterns for each smell type.
+
+Deduplication by pattern id avoids duplicate work for the critic and recommender.
+"""
+
 from __future__ import annotations
 
 from typing import Dict, List
@@ -11,6 +17,7 @@ from agent.app.state import GraphState
 logger = get_logger("agent.nodes.retrieval")
 
 def retrieve_patterns_for_smells(store: PatternStore, smell_types: List[str]) -> List[ArchitecturePattern]:
+    """Union of patterns for all smell types, de-duplicated by pattern ``id``."""
     selected: Dict[str, ArchitecturePattern] = {}
     for st in smell_types:
         for p in store.get_patterns_for_smell(st):

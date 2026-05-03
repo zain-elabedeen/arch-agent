@@ -1,3 +1,11 @@
+"""
+Critic agent: surface risks from pattern ``avoid_when`` clauses.
+
+Evaluates string conditions (heuristic rules over signals/topology) and structured
+``PatternConstraint`` entries (see ``agent.app.models.pattern``) so warnings stay
+grounded in explicit “when not to” knowledge.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -8,7 +16,9 @@ from agent.app.state import Critique, GraphState
 
 logger = get_logger("agent.nodes.critic")
 
+
 def _get_signal_value(state: GraphState, key: str) -> Optional[float]:
+    """Return a numeric signal from normalized ``signals``, else from ``raw_signals``."""
     val = state.get("signals", {}).get(key)
     if val is None:
         # allow looking up raw metric keys too
@@ -18,6 +28,7 @@ def _get_signal_value(state: GraphState, key: str) -> Optional[float]:
 
 
 def _topology_has(state: GraphState, key: str) -> bool:
+    """Predicate helpers for topology-shaped ``PatternConstraint`` keys (e.g. ``has_db_edge``)."""
     topology = state.get("topology", {})
     edges = topology.get("edges", [])
     if key == "has_db_edge":
@@ -32,6 +43,12 @@ def _topology_has(state: GraphState, key: str) -> bool:
 
 
 def _eval_structured_constraint(state: GraphState, c: PatternConstraint) -> tuple[bool, Dict[str, Any]]:
+    """
+    Evaluate one structured ``avoid_when`` clause.
+
+    Returns ``(triggered, evidence)``. Missing signal values yield ``triggered=False``
+    so the critic does not warn on absent data.
+    """
     evidence: Dict[str, Any] = {"constraint_key": c.key, "operator": c.operator, "kind": c.kind}
     if c.kind == "topology":
         ok = _topology_has(state, c.key)
@@ -65,6 +82,7 @@ def _eval_structured_constraint(state: GraphState, c: PatternConstraint) -> tupl
     return False, evidence
 
 
+# Human-authored pattern JSON may use variant phrases; normalize before rule lookup.
 CONDITION_ALIASES: Dict[str, str] = {
     "very small systems": "small simple systems",
     "low throughput systems": "low traffic systems",
@@ -72,6 +90,7 @@ CONDITION_ALIASES: Dict[str, str] = {
 }
 
 
+# Stable user-facing copy when a string ``avoid_when`` condition fires.
 WARNING_TEMPLATES: Dict[str, str] = {
     "write-heavy workload": "Workload appears write-heavy; this pattern targets read scaling and may not address the bottleneck.",
     "strict consistency required": "This pattern may introduce eventual consistency and violate strong consistency requirements.",
@@ -89,55 +108,71 @@ WARNING_TEMPLATES: Dict[str, str] = {
 
 
 def _normalize_condition(condition: str) -> str:
+    """Lowercase and map catalog synonyms to keys in ``AVOID_CONDITION_RULES``."""
     c = condition.strip().lower()
     return CONDITION_ALIASES.get(c, c)
 
 
 def _sig(signals: Dict[str, Any], key: str) -> Any:
+    """Read optional extended signal the smell layer may not populate (critic-only hints)."""
     return signals.get(key)
 
 
+# Phrase-condition evaluators for string ``avoid_when`` entries: return True when the
+# warning applies, False when it does not, None if required signals/topology are absent.
+# Keys align with ``AVOID_CONDITION_RULES`` after ``_normalize_condition``.
+
+
 def _rule_write_heavy(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``write_ratio`` > 0.6 ⇒ write-heavy (read-scaling patterns may misfit)."""
     v = _sig(signals, "write_ratio")
     return None if v is None else float(v) > 0.6
 
 
 def _rule_read_heavy(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``read_ratio`` > 0.7 ⇒ read-heavy context."""
     v = _sig(signals, "read_ratio")
     return None if v is None else float(v) > 0.7
 
 
 def _rule_low_traffic(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``request_rate`` < 50 ⇒ low traffic (complex patterns may be premature)."""
     v = _sig(signals, "request_rate")
     return None if v is None else float(v) < 50
 
 
 def _rule_increasing_traffic(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``request_growth_rate`` > 0.2 ⇒ sustained growth (capacity patterns more relevant)."""
     v = _sig(signals, "request_growth_rate")
     return None if v is None else float(v) > 0.2
 
 
 def _rule_strict_consistency(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``requires_strong_consistency`` flag from extended signals (eventual-consistency risk)."""
     v = _sig(signals, "requires_strong_consistency")
     return None if v is None else bool(v)
 
 
 def _rule_highly_dynamic(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``data_volatility`` > 0.7 ⇒ cache/replica staleness risk."""
     v = _sig(signals, "data_volatility")
     return None if v is None else float(v) > 0.7
 
 
 def _rule_frequent_write_read(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``write_read_coupling`` > 0.6 ⇒ tight write/read coupling on hot paths."""
     v = _sig(signals, "write_read_coupling")
     return None if v is None else float(v) > 0.6
 
 
 def _rule_small_dataset(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``dataset_size_gb`` < 5 ⇒ sharding/partitioning may be overkill."""
     v = _sig(signals, "dataset_size_gb")
     return None if v is None else float(v) < 5
 
 
 def _rule_small_simple(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """Fewer than three services in topology ⇒ “small simple” deployment shape."""
     service_count = topology.get("service_count")
     if service_count is None:
         services = topology.get("services")
@@ -148,11 +183,13 @@ def _rule_small_simple(signals: Dict[str, Any], topology: Dict[str, Any]) -> Opt
 
 
 def _rule_persistent_failures(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``error_rate`` > 0.3 ⇒ retries/circuits may amplify load (treat as persistent)."""
     v = _sig(signals, "error_rate")
     return None if v is None else float(v) > 0.3
 
 
 def _rule_transient_failures(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """Elevated but moderate ``error_rate`` band (transient / flaky behavior)."""
     v = _sig(signals, "error_rate")
     if v is None:
         return None
@@ -160,11 +197,13 @@ def _rule_transient_failures(signals: Dict[str, Any], topology: Dict[str, Any]) 
 
 
 def _rule_stable_deps(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``dependency_failure_rate`` < 0.01 ⇒ resilience churn may not pay off."""
     v = _sig(signals, "dependency_failure_rate")
     return None if v is None else float(v) < 0.01
 
 
 def _rule_high_load(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """High CPU (>0.8) or very high ``request_rate`` (>1000) ⇒ load pressure."""
     cpu = _sig(signals, "cpu") or _sig(signals, "cpu_utilization")
     req = _sig(signals, "request_rate")
     if cpu is None and req is None:
@@ -173,6 +212,7 @@ def _rule_high_load(signals: Dict[str, Any], topology: Dict[str, Any]) -> Option
 
 
 def _rule_resource_exhaustion(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """CPU or memory above 0.9 ⇒ adding overhead may worsen saturation."""
     cpu = _sig(signals, "cpu") or _sig(signals, "cpu_utilization")
     mem = _sig(signals, "memory") or _sig(signals, "memory_utilization")
     if cpu is None and mem is None:
@@ -181,11 +221,13 @@ def _rule_resource_exhaustion(signals: Dict[str, Any], topology: Dict[str, Any])
 
 
 def _rule_traffic_spikes(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """Boolean ``traffic_spike`` hint from extended signals."""
     v = _sig(signals, "traffic_spike")
     return None if v is None else bool(v)
 
 
 def _rule_stateful_tight(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``stateful`` and high ``coupling_score`` in topology metadata."""
     st = topology.get("stateful")
     score = topology.get("coupling_score")
     if st is None or score is None:
@@ -194,11 +236,13 @@ def _rule_stateful_tight(signals: Dict[str, Any], topology: Dict[str, Any]) -> O
 
 
 def _rule_single_instance(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``instance_count`` == 1 ⇒ horizontal patterns may not apply yet."""
     cnt = topology.get("instance_count")
     return None if cnt is None else int(cnt) == 1
 
 
 def _rule_very_small(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """Fewer than two services ⇒ minimal topology."""
     service_count = topology.get("service_count")
     if service_count is None:
         services = topology.get("services")
@@ -209,10 +253,12 @@ def _rule_very_small(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optio
 
 
 def _rule_complex_joins(signals: Dict[str, Any], topology: Dict[str, Any]) -> Optional[bool]:
+    """``complex_query_ratio`` > 0.5 ⇒ sharding may complicate query paths."""
     v = _sig(signals, "complex_query_ratio")
     return None if v is None else float(v) > 0.5
 
 
+# Maps normalized ``avoid_when`` string labels to evaluator callables.
 AVOID_CONDITION_RULES = {
     "write-heavy workload": _rule_write_heavy,
     "read-heavy workload": _rule_read_heavy,
@@ -241,6 +287,10 @@ AVOID_CONDITION_RULES = {
 def _generate_phrase_warning(
     pattern: ArchitecturePattern, raw_condition: str, signals: Dict[str, Any], topology: Dict[str, Any]
 ) -> Optional[Critique]:
+    """
+    If ``raw_condition`` matches a registered rule and the rule returns True,
+    emit a templated ``Critique`` for that pattern.
+    """
     condition = _normalize_condition(raw_condition)
     rule = AVOID_CONDITION_RULES.get(condition)
     if not rule:
@@ -261,6 +311,10 @@ def _generate_phrase_warning(
 
 
 def critique_patterns(state: GraphState, patterns: List[ArchitecturePattern]) -> List[Critique]:
+    """
+    Walk each pattern's ``avoid_when``: string phrases use heuristics above;
+    ``PatternConstraint`` entries use structured evaluation against ``state``.
+    """
     critiques: List[Critique] = []
     signals = state.get("signals", {}) or {}
     topology = state.get("topology", {}) or {}

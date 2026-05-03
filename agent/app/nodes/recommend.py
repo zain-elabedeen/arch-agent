@@ -1,3 +1,10 @@
+"""
+Recommendation agent: rank curated patterns into ``Recommendation`` records.
+
+Only patterns explicitly mapped from observed smells (via ``SMELL_TO_PATTERN_MAP``)
+receive recommendations—no free-form invention.
+"""
+
 from __future__ import annotations
 
 from typing import Dict, List
@@ -15,6 +22,7 @@ _CONF_SCORE = {"low": 1, "medium": 2, "high": 3}
 
 
 def _pattern_score(p: ArchitecturePattern) -> float:
+    """Heuristic sort key: reward impact and confidence, penalize effort (see weights)."""
     # Prefer high impact, low effort, high confidence.
     return (
         1.5 * _IMPACT_SCORE[p.impact]
@@ -24,6 +32,7 @@ def _pattern_score(p: ArchitecturePattern) -> float:
 
 
 def _pattern_priority(smell_types: List[str], pattern_id: str) -> tuple[int, str]:
+    """Best (lowest) priority and reason string from ``SMELL_TO_PATTERN_MAP`` across smells."""
     best_priority = 999
     best_reason = ""
     for smell in smell_types:
@@ -37,6 +46,10 @@ def _pattern_priority(smell_types: List[str], pattern_id: str) -> tuple[int, str
 def recommend_for_patterns(
     patterns: List[ArchitecturePattern], smell_types: List[str], limit: int = 6
 ) -> List[Recommendation]:
+    """
+    Score patterns, keep only those explicitly mapped from ``smell_types``, cap at ``limit``,
+    then sort by mapping priority and impact/effort tie-breakers.
+    """
     ordered = sorted(patterns, key=_pattern_score, reverse=True)
     recs: List[Recommendation] = []
     for p in ordered:

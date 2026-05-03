@@ -1,3 +1,10 @@
+"""
+Planner agent: turn ordered recommendations into ``PlanStep`` items for execution.
+
+MVP ordering is heuristic (impact/effort buckets); richer dependency graphs can
+replace ``build_plan`` later without changing the graph shape.
+"""
+
 from __future__ import annotations
 
 from typing import List
@@ -12,6 +19,7 @@ _EFFORT_SCORE = {"low": 1, "medium": 2, "high": 3}
 
 
 def _rank_bucket(rec: Recommendation) -> int:
+    """Coarse bucket 0..2 for ``build_plan`` ordering (high impact / low effort first)."""
     # Requested ordering:
     # 1) high impact / low effort first
     # 2) medium impact / medium effort next
@@ -49,6 +57,7 @@ def build_plan(recommendations: List[Recommendation]) -> List[PlanStep]:
 
 
 def planner_node(state: GraphState) -> GraphState:
+    """Populate ``final_plan`` from current ``recommendations`` via ``build_plan``."""
     run_id = state.get("run_id", "n/a")
     logger.info(
         "planner_agent start run_id=%s recommendations=%d",

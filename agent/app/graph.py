@@ -1,6 +1,13 @@
-from __future__ import annotations
+"""
+LangGraph orchestration for the architecture recommendation pipeline.
 
-from typing import Callable
+Each graph node is a single-responsibility *agent* (telemetry, smells, retrieval,
+recommend, critic, planner, reasoning). They share ``GraphState`` (``agent.app.state``) as typed working memory. This
+matches the MVP plan: deterministic detection and retrieval first; optional LLM
+only in the reasoning node for explanation quality.
+"""
+
+from __future__ import annotations
 
 from langgraph.graph import END, StateGraph
 
@@ -17,11 +24,17 @@ from agent.app.state import GraphState
 
 logger = get_logger("agent.graph")
 
+
 def build_graph(settings: Settings):
     """
-    Build a LangGraph pipeline.
+    Compile the linear multi-agent pipeline: telemetry → … → reasoning → END.
 
-    Nodes are written to be callable independently; the graph provides orchestration.
+    ``retrieval_agent`` and ``reasoning_agent`` close over ``settings`` for catalog
+    path and optional LLM configuration; other nodes are pure state in → state out.
+
+    Returns:
+        A compiled LangGraph runnable: ``invoke(GraphState)`` merges partial node
+        returns into the terminal ``GraphState``.
     """
 
     logger.info("building pipeline graph for environment=%s", settings.environment)

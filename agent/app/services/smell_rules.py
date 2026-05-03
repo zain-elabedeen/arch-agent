@@ -1,9 +1,18 @@
+"""
+Deterministic architecture **smell** detection.
+
+Smells are not root-cause diagnoses; they are stable labels that downstream agents
+(retrieval, recommend, critic) use to ground recommendations. All thresholds and
+topology heuristics live here so behavior stays testable and explainable.
+"""
+
 from __future__ import annotations
 
 from typing import Dict, List
 
 
 def _value(metrics: Dict[str, float], *keys: str) -> float | None:
+    """First present key wins (supports canonical and legacy metric names)."""
     for key in keys:
         v = metrics.get(key)
         if v is not None:
@@ -12,10 +21,12 @@ def _value(metrics: Dict[str, float], *keys: str) -> float | None:
 
 
 def _severity_for_threshold(value: float, warn: float, high: float) -> str:
+    """Bucket a scalar into smell severity labels for threshold-style rules."""
     return "high" if value >= high else ("medium" if value >= warn else "low")
 
 
 def _confidence_for_coupling(deps: int) -> float:
+    """Higher outbound dependency count ⇒ slightly higher confidence in coupling smell."""
     if deps > 6:
         return 0.92
     if deps > 4:
@@ -30,6 +41,7 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
     """
     smells: List[dict] = []
 
+    # --- Metric-backed smells (thresholds are MVP constants; tune with product input) ---
     db_latency = _value(metrics, "db_latency_ms", "db_latency_p95_ms")
     req_p95 = _value(metrics, "request_latency_p95_ms")
     cpu = _value(metrics, "cpu", "cpu_utilization")
@@ -66,6 +78,7 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
             }
         )
 
+    # --- Topology-backed smell: many outbound deps from one service ---
     edges = topology.get("edges", []) if isinstance(topology, dict) else []
     outbound_deps: Dict[str, int] = {}
     for edge in edges:

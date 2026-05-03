@@ -1,3 +1,11 @@
+"""
+HTTP API for the architecture recommendation agent system.
+
+Each ``POST /v1/recommendations`` builds initial ``GraphState``, invokes the
+compiled LangGraph from ``agent.app.graph``, and returns ``RecommendationResponse``.
+Business logic lives in nodes and services, not in route handlers.
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -13,17 +21,26 @@ from agent.app.state import GraphState, RecommendationRequest, RecommendationRes
 settings = get_settings()
 configure_logging(settings.log_level)
 logger = get_logger("agent.api")
-app = FastAPI(title="ArchAgent", version="0.1.0")
+app = FastAPI(
+    title="ArchAgent",
+    version="0.1.0",
+    description="Structured signals + topology → smells, recommendations, critiques, plan, explanation.",
+)
 
 
 @app.get("/healthz")
 def healthz() -> dict:
+    """Minimal liveness probe for orchestrators and load balancers."""
     return {"ok": True}
 
 
 @app.post("/v1/recommendations", response_model=RecommendationResponse)
 def recommend(req: RecommendationRequest) -> RecommendationResponse:
-    # Reload settings per request so .env edits are reflected without surprises.
+    """
+    Run the full LangGraph pipeline once and return structured smells, recs,
+    critiques, plan, and markdown explanation.
+    """
+    # Refresh cached settings so .env changes apply without restarting uvicorn (dev UX).
     get_settings.cache_clear()
     settings = get_settings()
     graph = build_graph(settings)

@@ -1,29 +1,211 @@
-# AI Infrastructure Architecture Recommendation System (MVP)
+# AI Infrastructure Architecture Intelligence System
 
-Production-oriented MVP skeleton for an **infrastructure architecture recommendation system**.
+An agent system that turns **runtime signals + service topology** into **actionable architecture decisions**.
 
-It ingests **structured telemetry + topology**, detects **architecture smells** deterministically, retrieves **curated architecture patterns**, produces **recommendations**, applies a **critic** pass, and outputs a **prioritized plan**.
+> Based on what is happening in production, how should the system evolve?
 
-## What’s implemented (MVP skeleton)
+---
 
-- FastAPI service with a single endpoint: `POST /v1/recommendations`
-- LangGraph pipeline with nodes:
-  - telemetry → smells → retrieval → recommend → critic → planner
-- Deterministic smell rules (no “LLM guesses”)
-- Structured pattern catalog loaded from `app/patterns/` (filesystem now; interface designed to swap to Postgres later)
-- Fully typed Pydantic models for inputs/outputs/state
+## 🧠 Core Idea
+
+Modern distributed systems continuously evolve:
+
+- Load increases  
+- Bottlenecks emerge  
+- Failures cascade  
+- Architecture becomes outdated  
+
+Today, this evolution is:
+- manual  
+- reactive  
+- dependent on senior engineers  
+
+This system introduces a new layer:
+
+> A **runtime architecture intelligence engine** that understands system behavior and suggests how the architecture should change.
+
+---
+
+## 🎯 What This System Does
+
+Given:
+
+- runtime signals (latency, CPU, errors, backlog)
+- system topology (services, dependencies)
+
+It produces:
+
+- architecture **smells** (signals of stress)
+- **root-cause-aware insights** (where issues originate)
+- **architecture recommendations**
+- **tradeoff-aware critiques**
+- **prioritized execution plan**
+- **human-readable explanation**
+
+---
+
+## 🚫 What This System Is NOT
+
+To keep scope precise:
+
+- Not an observability platform (Datadog, Grafana, etc.)
+- Not a monitoring or alerting system
+- Not an auto-remediation engine (yet)
+- Not an LLM guessing from logs
+
+Instead:
+
+> It is a **reasoning layer on top of structured system data**
+
+---
+
+## 🏗️ System Architecture (Pipeline)
+
+```text
+Telemetry → Smell Detection → Pattern Retrieval → Recommendation → Critic → Planner → Reasoning (explanation)
+```
+
+Design principles:
+
+| Layer | Role |
+|--------|------|
+| Detection | Deterministic rules over normalized signals + topology |
+| Knowledge | Structured patterns (`ArchitecturePattern`) and smell→pattern mapping |
+| Explanation | Deterministic markdown report;  LLM pass for clarity |
+
+---
+
+## 🔁 Multi-Agent Pipeline (LangGraph)
+
+Each node is a focused agent operating on shared state (`GraphState`):
+
+### 1. Telemetry Agent
+
+Normalizes input into canonical signals and topology.
+
+### 2. Smell Agent
+
+Detects **architecture smells** using deterministic rules.
+
+> Smells = signals of stress (NOT root causes)
+
+---
+
+### 3. Retrieval Agent
+
+Maps smells → candidate architecture patterns.
+
+---
+
+### 4. Recommendation Agent
+
+Generates structured recommendations:
+
+- pattern
+
+- solution
+
+- impact
+
+- effort
+
+- priority
+
+---
+
+### 5. Critic Agent
+
+Applies constraints (`avoid_when`) to detect risks.
+
+---
+
+### 6. Planner Agent
+
+Creates a prioritized execution plan.
+
+---
+
+### 7. Reasoning Agent
+
+Produces explanation report.
+
+- deterministic fallback
+
+- optional LLM for readability only
+
+Orchestration lives in `agent/app/graph.py`. Node implementations are under `agent/app/nodes/`.
+
+---
+
+## Core concepts
+
+### Signals and topology (inputs)
+
+- **Signals**: e.g. request/DB latency, CPU, queue backlog, error rate (see `TelemetrySignals` in `agent/app/state.py` and aliases in `agent/app/nodes/telemetry.py`).
+- **Topology**: services, edges (who calls whom, edge types), optional critical stores/queues.
+
+### Architecture smells
+
+Smells are **labels for patterns of stress** inferred from signals/topology (e.g. `read_scaling_bottleneck`, `cpu_saturation`). They **trigger** retrieval; they are not fixes by themselves.
+
+Examples:
+- `read_scaling_bottleneck`
+- `cpu_saturation`
+- `queue_backlog`
+- `coupling_risk`
+
+### Architecture patterns
+
+Patterns are the unit of reusable knowledge: use/avoid conditions, solutions, tradeoffs, impact/effort/confidence. Files live in `agent/app/patterns/` (JSON validated by `agent/app/models/pattern.py`).
+
+Examples:
+- read replicas  
+- caching  
+- load balancing  
+- queue partitioning
+
+### Smell → pattern mapping
+
+`agent/app/services/pattern_loader.py` defines `SMELL_TO_PATTERN_MAP`: explicit, explainable links from smell types to pattern ids. This can later evolve into semantic or graph-based retrieval.
+
+---
+
+## State model
+
+`GraphState` (TypedDict in `agent/app/state.py`) flows through the pipeline:
+
+| Field | Set by |
+|--------|--------|
+| `signals` | normalized metrics |
+| `topology` | system structure |
+| `smells` | detected stress signals |
+| `patterns` | candidate solutions |
+| `recommendations` | ranked outputs |
+| `critiques` | risk warnings |
+| `final_plan` | execution steps |
+| `explanation_report` | human-readable output |
+
+---
+
+## API
+
+- `POST /v1/recommendations` — Run the full pipeline; returns JSON:
+
+  - `smells` — type, severity, confidence, evidence  
+  - `recommendations` — pattern, solution, impact, effort, priority, reason  
+  - `critiques` — pattern_id, level, message, evidence  
+  - `plan` — ordered steps with impact/effort  
+  - `explanation_report` — markdown narrative  
+
+---
 
 ## Quickstart
-
-Create a virtualenv and install deps:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
-
-Run the API:
 
 ```bash
 uvicorn agent.app.main:app --reload
@@ -54,9 +236,22 @@ curl -s http://127.0.0.1:8000/v1/recommendations \
   }' | jq .
 ```
 
-## Notes on design
+### Configuration
 
-- **Smell detection is deterministic** in `app/services/smell_rules.py` to keep the MVP explainable and repeatable.
-- **Patterns are structured** in JSON and validated by Pydantic (`app/models/pattern.py`).
-- Each node is independently callable for unit tests and future pipeline reuse.
+Copy `.env.example` to `.env`. Variables use the `ARCHAGENT_` prefix (see `agent/app/config.py`):
+
+- `ARCHAGENT_PATTERN_STORE` — `filesystem` (default; Postgres path reserved)
+- `ARCHAGENT_PATTERNS_PATH` — catalog directory
+- `ARCHAGENT_LLM_REASONING_ENABLED`, `ARCHAGENT_LLM_PROVIDER`, `ARCHAGENT_LLM_MODEL` — optional explanation LLM
+- `ARCHAGENT_OPENAI_API_KEY` or `ARCHAGENT_OLLAMA_BASE_URL` — provider credentials
+
+---
+
+## Tests
+
+```bash
+pytest
+```
+
+Nodes are written to be callable independently for unit tests; the graph is covered in `tests/test_graph_pipeline.py`.
 

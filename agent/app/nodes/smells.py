@@ -1,3 +1,5 @@
+"""Smell agent: run deterministic ``detect_smells`` on normalized state."""
+
 from __future__ import annotations
 
 from agent.app.logging_utils import get_logger

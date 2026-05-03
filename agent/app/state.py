@@ -1,3 +1,11 @@
+"""
+Shared types for the HTTP API and the LangGraph ``GraphState``.
+
+Request/response models are Pydantic (validation + OpenAPI). ``GraphState`` is a
+:class:`typing.TypedDict` so LangGraph can merge dict-shaped node returns without
+a custom reducer (see README state model).
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, TypedDict
@@ -5,7 +13,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
-from agent.app.models.pattern import ArchitecturePattern, Confidence, Effort, Impact
+from agent.app.models.pattern import ArchitecturePattern, Effort, Impact
 
 
 class TelemetrySignals(BaseModel):
@@ -27,6 +35,8 @@ class TelemetrySignals(BaseModel):
 
 
 class TopologyEdge(BaseModel):
+    """One directed dependency between two services (API uses ``from`` / ``to`` aliases)."""
+
     model_config = ConfigDict(populate_by_name=True)
 
     from_service: str = Field(alias="from")
@@ -35,6 +45,8 @@ class TopologyEdge(BaseModel):
 
 
 class ServiceTopology(BaseModel):
+    """Service list plus edges and optional critical infrastructure markers."""
+
     model_config = ConfigDict(populate_by_name=True)
 
     services: List[str] = Field(default_factory=list)
@@ -44,6 +56,8 @@ class ServiceTopology(BaseModel):
 
 
 class Smell(BaseModel):
+    """API projection of a smell dict from ``smell_rules.detect_smells``."""
+
     type: str
     severity: Impact = "medium"
     confidence: float = 0.8
@@ -51,6 +65,8 @@ class Smell(BaseModel):
 
 
 class Recommendation(BaseModel):
+    """One ranked architecture move proposed by the recommendation agent."""
+
     pattern: str
     solution: str
     impact: Impact
@@ -60,6 +76,8 @@ class Recommendation(BaseModel):
 
 
 class Critique(BaseModel):
+    """Risk or constraint warning from the critic agent for a given pattern."""
+
     pattern_id: str
     level: str  # "warning" | "blocker"
     message: str
@@ -67,6 +85,8 @@ class Critique(BaseModel):
 
 
 class PlanStep(BaseModel):
+    """Single ordered step in the planner output (1-based indexing in ``title`` for MVP)."""
+
     title: str
     description: str
     impact: Impact
@@ -75,12 +95,15 @@ class PlanStep(BaseModel):
 
 
 class RecommendationRequest(BaseModel):
-    # Allow direct submission of canonical signals/topology for the MVP.
+    """POST body: raw metric bag plus topology (telemetry node normalizes signal keys)."""
+
     signals: Dict[str, float] = Field(default_factory=dict)
     topology: ServiceTopology = Field(default_factory=ServiceTopology)
 
 
 class RecommendationResponse(BaseModel):
+    """Full pipeline result returned to API clients."""
+
     smells: List[Smell]
     recommendations: List[Recommendation]
     critiques: List[Critique]
@@ -89,12 +112,17 @@ class RecommendationResponse(BaseModel):
 
 
 class GraphState(TypedDict, total=False):
+    """
+    Working memory for all pipeline agents. Keys are populated progressively;
+    ``total=False`` allows partial updates from each node.
+    """
+
     run_id: str
-    # Input aliases for telemetry stage
+    # Populated from the API body; consumed by telemetry_agent.
     raw_signals: Dict[str, float]
     raw_topology: Dict[str, Any]
 
-    # Required MVP pipeline state fields
+    # Canonical inputs after telemetry_agent; then smells → … → explanation_report.
     signals: Dict[str, float]
     topology: Dict[str, Any]
     smells: List[Dict[str, Any]]

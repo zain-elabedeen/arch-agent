@@ -1,3 +1,10 @@
+"""
+Structured architecture pattern catalog types.
+
+Patterns are the unit of curated knowledge: constraints and solutions are data,
+not model prose, so retrieval and critic behavior stay auditable.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional, Union
@@ -27,6 +34,11 @@ class PatternConstraint(BaseModel):
 
 
 class ArchitecturePattern(BaseModel):
+    """
+    One record from the JSON catalog: metadata, ``use_when`` / ``avoid_when`` clauses,
+    ranked solutions, and coarse impact/effort/confidence for UX and sorting.
+    """
+
     id: str
     name: str
     category: str

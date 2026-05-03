@@ -1,3 +1,11 @@
+"""
+Pattern catalog loading and smell-to-pattern routing.
+
+The MVP keeps retrieval **explicit**: ``SMELL_TO_PATTERN_MAP`` ties smell types
+to pattern ids loaded from JSON. ``PatternRepository`` reserves a Postgres-backed
+implementation without changing node code.
+"""
+
 from __future__ import annotations
 
 import json
@@ -10,14 +18,19 @@ from agent.app.models.pattern import ArchitecturePattern
 
 
 class PatternRepository(Protocol):
+    """Load-only catalog access; swap implementations for Postgres without changing nodes."""
+
     def list_patterns(self) -> List[ArchitecturePattern]: ...
 
 
 @dataclass(frozen=True)
 class FilesystemPatternRepository:
+    """Load ``*.json`` pattern files from ``patterns_path`` in sorted name order."""
+
     patterns_path: str
 
     def list_patterns(self) -> List[ArchitecturePattern]:
+        """Parse each JSON file into ``ArchitecturePattern``; skip missing directories."""
         patterns: List[ArchitecturePattern] = []
         if not os.path.isdir(self.patterns_path):
             return patterns
@@ -46,20 +59,24 @@ def get_pattern_repository(settings: Settings) -> PatternRepository:
     # Designed-for-Postgres behavior: fail fast with a helpful message.
     raise RuntimeError(
         "pattern_store=postgres is not yet implemented in the MVP. "
-        "Set AGENT_PATTERN_STORE=filesystem or implement a Postgres repository."
+        "Set ARCHAGENT_PATTERN_STORE=filesystem or implement a Postgres repository."
     )
 
 
 def load_patterns(settings: Settings) -> List[ArchitecturePattern]:
+    """Flat list of all patterns from the configured repository (utility; nodes use ``PatternStore``)."""
     return get_pattern_repository(settings).list_patterns()
 
 
 class MappedPattern(TypedDict):
+    """One smell-to-pattern link: pattern id, rank, and human reason for the mapping."""
+
     pattern: str
     priority: int
     reason: str
 
 
+# Explicit routing from smell ``type`` strings to catalog pattern ids (priority + reason).
 SMELL_TO_PATTERN_MAP: Dict[str, List[MappedPattern]] = {
     "read_scaling_bottleneck": [
         {"pattern": "read_replicas", "priority": 1, "reason": "Distribute read load"},
@@ -90,13 +107,15 @@ SMELL_TO_PATTERN_MAP: Dict[str, List[MappedPattern]] = {
 
 @dataclass
 class PatternStore:
+    """In-memory catalog index keyed by pattern ``id`` for O(1) lookup during retrieval."""
+
     patterns_path: str
     patterns: Dict[str, ArchitecturePattern]
 
     @classmethod
     def load_patterns(cls, patterns_path: str) -> "PatternStore":
         """
-        Load all JSON pattern files from app/patterns into a dict keyed by id.
+        Load all ``*.json`` pattern files under ``patterns_path`` into a dict keyed by id.
         """
         loaded: Dict[str, ArchitecturePattern] = {}
         if not os.path.isdir(patterns_path):
@@ -113,16 +132,20 @@ class PatternStore:
         return cls(patterns_path=patterns_path, patterns=loaded)
 
     def get_by_id(self, pattern_id: str) -> ArchitecturePattern | None:
+        """Return a pattern by id, or None if unknown or not on disk."""
         return self.patterns.get(pattern_id)
 
     def get_all(self) -> List[ArchitecturePattern]:
+        """All loaded patterns (unordered)."""
         return list(self.patterns.values())
 
     def get_patterns_for_smell(self, smell_type: str) -> List[ArchitecturePattern]:
+        """Patterns linked to ``smell_type`` in ``SMELL_TO_PATTERN_MAP`` priority order."""
         ranked = self.get_ranked_patterns_for_smell(smell_type)
         return [item["pattern"] for item in ranked]
 
     def get_ranked_patterns_for_smell(self, smell_type: str) -> List[Dict[str, object]]:
+        """Like ``get_patterns_for_smell`` but retains priority/reason metadata per row."""
         mapping = SMELL_TO_PATTERN_MAP.get(smell_type, [])
         results: List[Dict[str, object]] = []
         for item in mapping:
@@ -139,5 +162,6 @@ class PatternStore:
 
 
 def load_pattern_store(settings: Settings) -> PatternStore:
+    """Convenience: build a ``PatternStore`` from ``settings.patterns_path`` (filesystem MVP)."""
     return PatternStore.load_patterns(settings.patterns_path)
 

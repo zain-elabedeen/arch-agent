@@ -1,3 +1,10 @@
+"""
+Telemetry agent: canonicalize client-provided metrics and topology.
+
+Downstream smell rules expect stable key names; ``_SIGNAL_ALIASES`` maps common
+alternate names (e.g. Prometheus-style shortcuts) onto those keys.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -24,6 +31,7 @@ _SIGNAL_ALIASES: Dict[str, str] = {
 
 
 def normalize_signals(raw: Dict[str, float]) -> Dict[str, float]:
+    """Apply ``_SIGNAL_ALIASES`` then coerce values to ``float`` (canonical keys for smell rules)."""
     normalized: Dict[str, float] = {}
     for k, v in raw.items():
         key = _SIGNAL_ALIASES.get(k, k)
