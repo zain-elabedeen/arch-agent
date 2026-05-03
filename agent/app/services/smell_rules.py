@@ -1,134 +1,101 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
-
-from agent.app.state import Smell, TelemetrySignals, TopologyEdge, ServiceTopology
+from typing import Dict, List
 
 
-@dataclass(frozen=True)
-class SmellRule:
-    smell_type: str
-    detect: Callable[[TelemetrySignals, ServiceTopology], Optional[Smell]]
+def _value(metrics: Dict[str, float], *keys: str) -> float | None:
+    for key in keys:
+        v = metrics.get(key)
+        if v is not None:
+            return float(v)
+    return None
 
 
-def _impact_from_ratio(r: float) -> str:
-    if r >= 0.9:
-        return "high"
-    if r >= 0.75:
-        return "medium"
-    return "low"
+def _severity_for_threshold(value: float, warn: float, high: float) -> str:
+    return "high" if value >= high else ("medium" if value >= warn else "low")
 
 
-def _confidence_from_evidence(keys_present: int) -> str:
-    if keys_present >= 3:
-        return "high"
-    if keys_present == 2:
-        return "medium"
-    return "low"
+def _confidence_for_coupling(deps: int) -> float:
+    if deps > 6:
+        return 0.92
+    if deps > 4:
+        return 0.86
+    return 0.8
 
 
-def detect_cpu_saturation(signals: TelemetrySignals, topology: ServiceTopology) -> Optional[Smell]:
-    if signals.cpu_utilization is None:
-        return None
-    if signals.cpu_utilization < 0.85:
-        return None
-    evidence: Dict[str, float | str] = {"cpu_utilization": signals.cpu_utilization}
-    return Smell(
-        type="cpu_saturation",
-        severity=_impact_from_ratio(signals.cpu_utilization),
-        confidence="medium",
-        evidence=evidence,
-    )
-
-
-def detect_queue_backlog(signals: TelemetrySignals, topology: ServiceTopology) -> Optional[Smell]:
-    if signals.queue_backlog is None:
-        return None
-    if signals.queue_backlog < 5000:
-        return None
-    has_queue_edge = any(e.type == "queue" for e in topology.edges)
-    evidence: Dict[str, float | str] = {"queue_backlog": signals.queue_backlog}
-    if has_queue_edge:
-        evidence["topology"] = "queue_edge_present"
-    return Smell(
-        type="queue_backlog",
-        severity="high" if signals.queue_backlog >= 20000 else "medium",
-        confidence="high" if has_queue_edge else "medium",
-        evidence=evidence,
-    )
-
-
-def detect_db_latency(signals: TelemetrySignals, topology: ServiceTopology) -> Optional[Smell]:
-    if signals.db_latency_p95_ms is None:
-        return None
-    if signals.db_latency_p95_ms < 250:
-        return None
-    has_db_edge = any(e.type == "db" for e in topology.edges)
-    evidence: Dict[str, float | str] = {"db_latency_p95_ms": signals.db_latency_p95_ms}
-    if has_db_edge:
-        evidence["topology"] = "db_edge_present"
-    return Smell(
-        type="db_latency_hotspot",
-        severity="high" if signals.db_latency_p95_ms >= 600 else "medium",
-        confidence="high" if has_db_edge else "medium",
-        evidence=evidence,
-    )
-
-
-def detect_request_latency(signals: TelemetrySignals, topology: ServiceTopology) -> Optional[Smell]:
-    p95 = signals.request_latency_p95_ms
-    if p95 is None:
-        return None
-    if p95 < 600:
-        return None
-    evidence: Dict[str, float | str] = {"request_latency_p95_ms": p95}
-    keys_present = 1 + int(signals.db_latency_p95_ms is not None) + int(signals.cpu_utilization is not None)
-    return Smell(
-        type="request_latency_regression",
-        severity="high" if p95 >= 1200 else "medium",
-        confidence=_confidence_from_evidence(keys_present),
-        evidence=evidence,
-    )
-
-
-def detect_coupling_risk(signals: TelemetrySignals, topology: ServiceTopology) -> Optional[Smell]:
+def detect_smells(metrics: dict, topology: dict) -> list[dict]:
     """
-    A simple topology-only smell: many inbound edges into a single service can
-    indicate architectural coupling and change-risk concentration.
+    Deterministic smell detection from canonical signals + topology.
+    Returns stable dict objects suitable for explainable downstream use.
     """
+    smells: List[dict] = []
 
-    inbound: Dict[str, int] = {s: 0 for s in topology.services}
-    for e in topology.edges:
-        if e.to_service in inbound:
-            inbound[e.to_service] += 1
-        else:
-            inbound[e.to_service] = 1
-    if not inbound:
-        return None
+    db_latency = _value(metrics, "db_latency_ms", "db_latency_p95_ms")
+    req_p95 = _value(metrics, "request_latency_p95_ms")
+    cpu = _value(metrics, "cpu", "cpu_utilization")
+    backlog = _value(metrics, "backlog", "queue_backlog")
+    error_rate = _value(metrics, "error_rate")
 
-    hotspot, degree = max(inbound.items(), key=lambda kv: kv[1])
-    if degree < 4:
-        return None
-    evidence: Dict[str, float | str] = {"service": hotspot, "inbound_dependencies": float(degree)}
-    return Smell(type="coupling_risk", severity="medium" if degree < 7 else "high", confidence="medium", evidence=evidence)
+    if db_latency is not None and req_p95 is not None and db_latency > 250 and req_p95 > 500:
+        smells.append(
+            {
+                "type": "read_scaling_bottleneck",
+                "severity": "high" if db_latency > 500 or req_p95 > 900 else "medium",
+                "confidence": 0.9,
+                "evidence": {"db_latency_ms": db_latency, "request_latency_p95_ms": req_p95},
+            }
+        )
 
+    if cpu is not None and cpu > 0.9:
+        smells.append(
+            {
+                "type": "cpu_saturation",
+                "severity": _severity_for_threshold(cpu, warn=0.9, high=0.97),
+                "confidence": 0.88,
+                "evidence": {"cpu": cpu},
+            }
+        )
 
-DEFAULT_RULES: List[SmellRule] = [
-    SmellRule("cpu_saturation", detect_cpu_saturation),
-    SmellRule("queue_backlog", detect_queue_backlog),
-    SmellRule("db_latency_hotspot", detect_db_latency),
-    SmellRule("request_latency_regression", detect_request_latency),
-    SmellRule("coupling_risk", detect_coupling_risk),
-]
+    if backlog is not None and backlog > 10000:
+        smells.append(
+            {
+                "type": "queue_backlog",
+                "severity": "high" if backlog > 25000 else "medium",
+                "confidence": 0.87,
+                "evidence": {"backlog": backlog},
+            }
+        )
 
+    edges = topology.get("edges", []) if isinstance(topology, dict) else []
+    outbound_deps: Dict[str, int] = {}
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        from_service = edge.get("from") or edge.get("from_service")
+        to_service = edge.get("to") or edge.get("to_service")
+        if not from_service or not to_service:
+            continue
+        outbound_deps[from_service] = outbound_deps.get(from_service, 0) + 1
+    for service, dep_count in outbound_deps.items():
+        if dep_count > 3:
+            smells.append(
+                {
+                    "type": "coupling_risk",
+                    "severity": "high" if dep_count > 6 else "medium",
+                    "confidence": _confidence_for_coupling(dep_count),
+                    "evidence": {"service": service, "dependencies": float(dep_count)},
+                }
+            )
 
-def run_smell_rules(signals: TelemetrySignals, topology: ServiceTopology, rules: List[SmellRule] | None = None) -> List[Smell]:
-    rules = rules or DEFAULT_RULES
-    smells: List[Smell] = []
-    for rule in rules:
-        smell = rule.detect(signals, topology)
-        if smell is not None:
-            smells.append(smell)
+    if error_rate is not None and error_rate > 0.05:
+        smells.append(
+            {
+                "type": "high_error_rate",
+                "severity": "high" if error_rate > 0.12 else "medium",
+                "confidence": 0.85,
+                "evidence": {"error_rate": error_rate},
+            }
+        )
+
     return smells
 
