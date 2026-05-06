@@ -32,6 +32,50 @@ class TelemetrySignals(BaseModel):
     memory_utilization: Optional[float] = None  # 0..1
     queue_backlog: Optional[float] = None
     saturation: Optional[float] = None  # generic 0..1, optional
+    pod_restart_total: Optional[float] = None
+    unavailable_replicas: Optional[float] = None
+    single_instance_service_count: Optional[float] = None
+    hpa_scaling_pressure: Optional[float] = None
+
+
+class ServiceSnapshot(BaseModel):
+    """Canonical per-service runtime view used by ingestion and future UIs."""
+
+    name: str
+    namespace: Optional[str] = None
+    cpu: float = 0.0
+    memory: float = 0.0
+    cpu_usage_cores: Optional[float] = None
+    memory_usage_bytes: Optional[float] = None
+    replicas: int = 0
+    available_replicas: Optional[int] = None
+    unavailable_replicas: Optional[int] = None
+    restarts: int = 0
+
+
+class SnapshotSignals(BaseModel):
+    """Extensible aggregate signal bag derived from one infrastructure snapshot."""
+
+    model_config = ConfigDict(extra="allow")
+
+    cpu_utilization: Optional[float] = None
+    memory_utilization: Optional[float] = None
+    queue_backlog: Optional[float] = None
+    pod_restart_total: Optional[float] = None
+    unavailable_replicas: Optional[float] = None
+    single_instance_service_count: Optional[float] = None
+    hpa_scaling_pressure: Optional[float] = None
+
+
+class SnapshotDataQuality(BaseModel):
+    """Collector completeness and inference quality hints for explainability."""
+
+    metrics_server_available: bool = False
+    services_with_metrics: int = 0
+    services_without_metrics: int = 0
+    pods_without_app_label: int = 0
+    topology_edges_inferred: int = 0
+    topology_confidence: str = "low"
 
 
 class TopologyEdge(BaseModel):
@@ -53,6 +97,15 @@ class ServiceTopology(BaseModel):
     edges: List[TopologyEdge] = Field(default_factory=list)
     critical_stores: List[str] = Field(default_factory=list)
     critical_queues: List[str] = Field(default_factory=list)
+
+
+class ClusterSnapshot(BaseModel):
+    """Canonical snapshot persisted by data-foundation connectors."""
+
+    services: List[ServiceSnapshot] = Field(default_factory=list)
+    signals: SnapshotSignals = Field(default_factory=SnapshotSignals)
+    topology: ServiceTopology = Field(default_factory=ServiceTopology)
+    data_quality: SnapshotDataQuality = Field(default_factory=SnapshotDataQuality)
 
 
 class Smell(BaseModel):
@@ -116,6 +169,7 @@ def recommendation_request_has_inline_payload(req: RecommendationRequest) -> boo
 class RecommendationResponse(BaseModel):
     """Full pipeline result returned to API clients."""
 
+    snapshot_run_id: Optional[str] = None
     smells: List[Smell]
     recommendations: List[Recommendation]
     critiques: List[Critique]
@@ -143,4 +197,3 @@ class GraphState(TypedDict, total=False):
     critiques: List[Critique]
     final_plan: List[PlanStep]
     explanation_report: str
-

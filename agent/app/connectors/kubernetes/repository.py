@@ -9,6 +9,7 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import Engine, MetaData, Table, Uuid, Column, String, Float, Integer, DateTime, text, select, desc, insert
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Connection
 
 from agent.app.state import ServiceTopology, TopologyEdge
@@ -22,6 +23,7 @@ runs_t = Table(
     metadata,
     Column("id", Uuid(as_uuid=True), primary_key=True),
     Column("created_at", DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP")),
+    Column("snapshot", JSONB, nullable=True),
 )
 
 service_metrics_t = Table(
@@ -31,7 +33,11 @@ service_metrics_t = Table(
     Column("service_name", String, nullable=False),
     Column("cpu", Float, nullable=False),
     Column("memory", Float, nullable=False),
+    Column("cpu_usage_cores", Float, nullable=True),
+    Column("memory_usage_bytes", Float, nullable=True),
     Column("replicas", Integer, nullable=False),
+    Column("available_replicas", Integer, nullable=True),
+    Column("unavailable_replicas", Integer, nullable=True),
     Column("restarts", Integer, nullable=False),
 )
 
@@ -42,6 +48,7 @@ signals_t = Table(
     Column("cpu_utilization", Float, nullable=True),
     Column("memory_utilization", Float, nullable=True),
     Column("queue_backlog", Float, nullable=True),
+    Column("payload", JSONB, nullable=True),
 )
 
 topology_t = Table(
@@ -59,7 +66,8 @@ def _ddl_statements() -> List[str]:
         """
         CREATE TABLE IF NOT EXISTS runs (
             id UUID PRIMARY KEY,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            snapshot JSONB
         )
         """,
         """
@@ -68,7 +76,11 @@ def _ddl_statements() -> List[str]:
             service_name TEXT NOT NULL,
             cpu DOUBLE PRECISION NOT NULL,
             memory DOUBLE PRECISION NOT NULL,
+            cpu_usage_cores DOUBLE PRECISION,
+            memory_usage_bytes DOUBLE PRECISION,
             replicas INTEGER NOT NULL,
+            available_replicas INTEGER,
+            unavailable_replicas INTEGER,
             restarts INTEGER NOT NULL,
             PRIMARY KEY (run_id, service_name)
         )
@@ -78,7 +90,8 @@ def _ddl_statements() -> List[str]:
             run_id UUID PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
             cpu_utilization DOUBLE PRECISION,
             memory_utilization DOUBLE PRECISION,
-            queue_backlog DOUBLE PRECISION
+            queue_backlog DOUBLE PRECISION,
+            payload JSONB
         )
         """,
         """
@@ -91,6 +104,12 @@ def _ddl_statements() -> List[str]:
         """,
         "CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs (created_at DESC)",
         "CREATE INDEX IF NOT EXISTS idx_topology_run_id ON topology (run_id)",
+        "ALTER TABLE runs ADD COLUMN IF NOT EXISTS snapshot JSONB",
+        "ALTER TABLE signals ADD COLUMN IF NOT EXISTS payload JSONB",
+        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS cpu_usage_cores DOUBLE PRECISION",
+        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS memory_usage_bytes DOUBLE PRECISION",
+        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS available_replicas INTEGER",
+        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS unavailable_replicas INTEGER",
     ]
 
 
@@ -113,7 +132,7 @@ def save_run(conn: Connection, data: Dict[str, Any]) -> uuid.UUID:
     optional ``topology`` override (same as normalize output).
     """
     run_id = uuid.uuid4()
-    conn.execute(insert(runs_t).values(id=run_id))
+    conn.execute(insert(runs_t).values(id=run_id, snapshot=data))
 
     services: List[Dict[str, Any]] = data.get("services") or []
     for svc in services:
@@ -123,7 +142,11 @@ def save_run(conn: Connection, data: Dict[str, Any]) -> uuid.UUID:
                 service_name=svc["name"],
                 cpu=float(svc.get("cpu") or 0.0),
                 memory=float(svc.get("memory") or 0.0),
+                cpu_usage_cores=svc.get("cpu_usage_cores"),
+                memory_usage_bytes=svc.get("memory_usage_bytes"),
                 replicas=int(svc.get("replicas") or 0),
+                available_replicas=svc.get("available_replicas"),
+                unavailable_replicas=svc.get("unavailable_replicas"),
                 restarts=int(svc.get("restarts") or 0),
             )
         )
@@ -135,6 +158,7 @@ def save_run(conn: Connection, data: Dict[str, Any]) -> uuid.UUID:
             cpu_utilization=sig.get("cpu_utilization"),
             memory_utilization=sig.get("memory_utilization"),
             queue_backlog=sig.get("queue_backlog"),
+            payload=sig,
         )
     )
 
@@ -183,12 +207,20 @@ def load_run_as_raw_state(conn: Connection, run_id: Optional[uuid.UUID]) -> Tupl
             signals_t.c.cpu_utilization,
             signals_t.c.memory_utilization,
             signals_t.c.queue_backlog,
+            signals_t.c.payload,
         ).where(signals_t.c.run_id == rid)
     ).mappings().first()
     if not sig_row:
         raise LookupError("missing_signals")
 
     raw_signals: Dict[str, float] = {}
+    payload = sig_row.get("payload") or {}
+    if isinstance(payload, dict):
+        for key, val in payload.items():
+            if val is None:
+                continue
+            if isinstance(val, (int, float, bool)):
+                raw_signals[key] = float(val)
     if sig_row["cpu_utilization"] is not None:
         raw_signals["cpu_utilization"] = float(sig_row["cpu_utilization"])
     if sig_row["memory_utilization"] is not None:

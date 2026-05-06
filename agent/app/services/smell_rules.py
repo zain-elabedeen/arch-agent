@@ -45,8 +45,13 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
     db_latency = _value(metrics, "db_latency_ms", "db_latency_p95_ms")
     req_p95 = _value(metrics, "request_latency_p95_ms")
     cpu = _value(metrics, "cpu", "cpu_utilization")
+    memory = _value(metrics, "memory", "memory_utilization")
     backlog = _value(metrics, "backlog", "queue_backlog")
     error_rate = _value(metrics, "error_rate")
+    restarts = _value(metrics, "pod_restart_total", "restart_count")
+    unavailable = _value(metrics, "unavailable_replicas")
+    single_instance_services = _value(metrics, "single_instance_service_count")
+    hpa_pressure = _value(metrics, "hpa_scaling_pressure")
 
     if db_latency is not None and req_p95 is not None and db_latency > 250 and req_p95 > 500:
         smells.append(
@@ -68,6 +73,16 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
             }
         )
 
+    if memory is not None and memory > 0.9:
+        smells.append(
+            {
+                "type": "memory_pressure",
+                "severity": _severity_for_threshold(memory, warn=0.9, high=0.97),
+                "confidence": 0.84,
+                "evidence": {"memory": memory},
+            }
+        )
+
     if backlog is not None and backlog > 10000:
         smells.append(
             {
@@ -75,6 +90,36 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
                 "severity": "high" if backlog > 25000 else "medium",
                 "confidence": 0.87,
                 "evidence": {"backlog": backlog},
+            }
+        )
+
+    if restarts is not None and restarts >= 3:
+        smells.append(
+            {
+                "type": "restart_instability",
+                "severity": "high" if restarts >= 10 else "medium",
+                "confidence": 0.78,
+                "evidence": {"pod_restart_total": restarts},
+            }
+        )
+
+    if unavailable is not None and unavailable > 0:
+        smells.append(
+            {
+                "type": "replica_unavailability",
+                "severity": "high" if unavailable >= 3 else "medium",
+                "confidence": 0.82,
+                "evidence": {"unavailable_replicas": unavailable},
+            }
+        )
+
+    if hpa_pressure is not None and hpa_pressure > 1.0:
+        smells.append(
+            {
+                "type": "autoscaling_pressure",
+                "severity": "high" if hpa_pressure >= 1.5 else "medium",
+                "confidence": 0.8,
+                "evidence": {"hpa_scaling_pressure": hpa_pressure},
             }
         )
 
@@ -100,6 +145,16 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
                 }
             )
 
+    if single_instance_services is not None and single_instance_services > 0:
+        smells.append(
+            {
+                "type": "single_instance_risk",
+                "severity": "medium",
+                "confidence": 0.74,
+                "evidence": {"single_instance_service_count": single_instance_services},
+            }
+        )
+
     if error_rate is not None and error_rate > 0.05:
         smells.append(
             {
@@ -111,4 +166,3 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
         )
 
     return smells
-

@@ -37,3 +37,23 @@ def test_detect_smells_respects_thresholds():
 
     smells = detect_smells(metrics, topology)
     assert smells == []
+
+
+def test_detect_smells_includes_kubernetes_native_smells():
+    smells = detect_smells(
+        {
+            "memory_utilization": 0.94,
+            "pod_restart_total": 5,
+            "unavailable_replicas": 2,
+            "single_instance_service_count": 1,
+            "hpa_scaling_pressure": 1.4,
+        },
+        {"edges": []},
+    )
+
+    smell_types = {s["type"] for s in smells}
+    assert "memory_pressure" in smell_types
+    assert "restart_instability" in smell_types
+    assert "replica_unavailability" in smell_types
+    assert "single_instance_risk" in smell_types
+    assert "autoscaling_pressure" in smell_types

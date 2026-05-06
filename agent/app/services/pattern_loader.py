@@ -84,9 +84,34 @@ SMELL_TO_PATTERN_MAP: Dict[str, List[MappedPattern]] = {
         {"pattern": "load_balancing", "priority": 3, "reason": "Balance traffic across instances"},
     ],
     "cpu_saturation": [
-        {"pattern": "horizontal_scaling", "priority": 1, "reason": "Increase compute capacity"},
-        {"pattern": "load_balancing", "priority": 2, "reason": "Distribute load evenly"},
-        {"pattern": "connection_pooling", "priority": 3, "reason": "Reduce connection overhead"},
+        {"pattern": "hpa_autoscaling", "priority": 1, "reason": "Autoscale pods when Kubernetes CPU pressure is sustained"},
+        {"pattern": "horizontal_scaling", "priority": 2, "reason": "Increase compute capacity"},
+        {"pattern": "load_balancing", "priority": 3, "reason": "Distribute load evenly"},
+        {"pattern": "connection_pooling", "priority": 4, "reason": "Reduce connection overhead"},
+    ],
+    "memory_pressure": [
+        {"pattern": "horizontal_scaling", "priority": 1, "reason": "Add capacity when memory pressure is workload-driven"},
+        {"pattern": "hpa_autoscaling", "priority": 2, "reason": "Use Kubernetes autoscaling once resource requests are reliable"},
+        {"pattern": "bulkhead", "priority": 3, "reason": "Isolate memory/resource contention between components"},
+    ],
+    "restart_instability": [
+        {"pattern": "timeouts_bulkheads", "priority": 1, "reason": "Limit dependency stalls and resource exhaustion that can trigger restarts"},
+        {"pattern": "circuit_breaker", "priority": 2, "reason": "Prevent repeated downstream failures from destabilizing pods"},
+        {"pattern": "bulkhead", "priority": 3, "reason": "Isolate failing components and resource pools"},
+    ],
+    "replica_unavailability": [
+        {"pattern": "load_balancing", "priority": 1, "reason": "Keep traffic on available replicas"},
+        {"pattern": "hpa_autoscaling", "priority": 2, "reason": "Recover capacity by maintaining desired replica count"},
+        {"pattern": "bulkhead", "priority": 3, "reason": "Reduce blast radius from unhealthy replicas"},
+    ],
+    "autoscaling_pressure": [
+        {"pattern": "hpa_autoscaling", "priority": 1, "reason": "Tune autoscaling while desired replicas exceed current capacity"},
+        {"pattern": "backpressure", "priority": 2, "reason": "Reduce intake while the cluster catches up"},
+        {"pattern": "rate_limiting", "priority": 3, "reason": "Protect saturated services during scaling events"},
+    ],
+    "single_instance_risk": [
+        {"pattern": "horizontal_scaling", "priority": 1, "reason": "Remove single-replica availability risk"},
+        {"pattern": "load_balancing", "priority": 2, "reason": "Distribute traffic after adding replicas"},
     ],
     "queue_backlog": [
         {"pattern": "queue_partitioning", "priority": 1, "reason": "Increase throughput"},
@@ -164,4 +189,3 @@ class PatternStore:
 def load_pattern_store(settings: Settings) -> PatternStore:
     """Convenience: build a ``PatternStore`` from ``settings.patterns_path`` (filesystem MVP)."""
     return PatternStore.load_patterns(settings.patterns_path)
-

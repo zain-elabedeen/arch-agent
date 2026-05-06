@@ -23,3 +23,17 @@ def test_pattern_store_smell_mapping_is_ranked_and_deterministic():
     assert ranked_ids == ["queue_partitioning", "backpressure", "async_processing"]
     assert priorities == sorted(priorities)
     assert store.get_patterns_for_smell("unknown_smell") == []
+
+
+def test_kubernetes_native_smells_map_to_existing_patterns():
+    patterns_path = Path(__file__).resolve().parents[1] / "agent" / "app" / "patterns"
+    store = PatternStore.load_patterns(str(patterns_path))
+
+    for smell in (
+        "memory_pressure",
+        "restart_instability",
+        "replica_unavailability",
+        "autoscaling_pressure",
+        "single_instance_risk",
+    ):
+        assert store.get_patterns_for_smell(smell), smell

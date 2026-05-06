@@ -34,7 +34,7 @@ def test_snapshot_mode_uses_fetch(monkeypatch: pytest.MonkeyPatch, client: TestC
             snap,
         )
 
-    monkeypatch.setattr("agent.app.main.fetch_snapshot_raw", fake_fetch)
+    monkeypatch.setattr("agent.app.api.recommendations.fetch_snapshot_raw", fake_fetch)
     r = client.post("/v1/recommendations", json={})
     assert r.status_code == 200
     data = r.json()
@@ -46,7 +46,7 @@ def test_snapshot_mode_missing_dsn(monkeypatch: pytest.MonkeyPatch, client: Test
     def boom(settings, rid):
         raise RuntimeError("ARCHAGENT_POSTGRES_DSN is not set")
 
-    monkeypatch.setattr("agent.app.main.fetch_snapshot_raw", boom)
+    monkeypatch.setattr("agent.app.api.recommendations.fetch_snapshot_raw", boom)
     r = client.post("/v1/recommendations", json={})
     assert r.status_code == 503
 
@@ -55,7 +55,7 @@ def test_snapshot_mode_no_rows(monkeypatch: pytest.MonkeyPatch, client: TestClie
     def _no_snapshot(settings, rid):
         raise LookupError("no_snapshot")
 
-    monkeypatch.setattr("agent.app.main.fetch_snapshot_raw", _no_snapshot)
+    monkeypatch.setattr("agent.app.api.recommendations.fetch_snapshot_raw", _no_snapshot)
     r = client.post("/v1/recommendations", json={})
     assert r.status_code == 503
 
@@ -64,7 +64,7 @@ def test_snapshot_mode_unknown_run(monkeypatch: pytest.MonkeyPatch, client: Test
     def _not_found(settings, rid):
         raise LookupError("run_not_found")
 
-    monkeypatch.setattr("agent.app.main.fetch_snapshot_raw", _not_found)
+    monkeypatch.setattr("agent.app.api.recommendations.fetch_snapshot_raw", _not_found)
     rid = uuid4()
     r = client.post(f"/v1/recommendations?run_id={rid}")
     assert r.status_code == 404
