@@ -1,244 +1,239 @@
-# AI Infrastructure Architecture Intelligence System
+# ArchAgent
 
-An agent system that turns **runtime signals + service topology** into **actionable architecture decisions**.
+ArchAgent is an infrastructure architecture intelligence system. It turns structured runtime data and service topology into architecture smells, ranked recommendations, risk critiques, execution plans, and an explanation report.
 
-> Based on what is happening in production, how should the system evolve?
+## What It Is
 
----
+ArchAgent is a reasoning layer on top of infrastructure data.
 
-## 🧠 Core Idea
+It consumes:
 
-Modern distributed systems continuously evolve:
-
-- Load increases  
-- Bottlenecks emerge  
-- Failures cascade  
-- Architecture becomes outdated  
-
-Today, this evolution is:
-- manual  
-- reactive  
-- dependent on senior engineers  
-
-This system introduces a new layer:
-
-> A **runtime architecture intelligence engine** that understands system behavior and suggests how the architecture should change.
-
----
-
-## 🎯 What This System Does
-
-Given:
-
-- runtime signals (latency, CPU, errors, backlog)
-- system topology (services, dependencies)
+- Kubernetes workload state
+- normalized runtime signals
+- inferred or annotated service topology
+- curated architecture patterns
 
 It produces:
 
-- architecture **smells** (signals of stress)
-- **root-cause-aware insights** (where issues originate)
-- **architecture recommendations**
-- **tradeoff-aware critiques**
-- **prioritized execution plan**
-- **human-readable explanation**
+- architecture smells
+- candidate architecture patterns
+- ranked recommendations
+- constraint and risk warnings
+- a prioritized plan
+- a human-readable report
 
----
+## What It Is Not
 
-## 🚫 What This System Is NOT
+ArchAgent is not:
 
-To keep scope precise:
+- a monitoring platform
+- an alerting system
+- a metrics database
+- an auto-remediation engine
+- an LLM DevOps chatbot
 
-- Not an observability platform (Datadog, Grafana, etc.)
-- Not a monitoring or alerting system
-- Not an auto-remediation engine (yet)
-- Not an LLM guessing from logs
+It does not replace Prometheus, Datadog, Grafana, or Kubernetes. It sits above infrastructure signals and converts them into architecture reasoning.
 
-Instead:
+## Current Scope
 
-> It is a **reasoning layer on top of structured system data**
+The current implementation focuses on Kubernetes data foundation plus the MVP architecture reasoning pipeline.
 
----
+Implemented:
 
-## 🏗️ System Architecture (Pipeline)
+- FastAPI API layer
+- LangGraph multi-agent pipeline
+- Kubernetes pull-based connector
+- snapshot normalization
+- Postgres persistence with JSONB snapshot payloads
+- snapshot-backed recommendation API
+- deterministic smell detection
+- smell-to-pattern retrieval
+- pattern-based critic rules
+- prioritized planner
+- deterministic explanation report with optional LLM polish
+
+Not implemented yet:
+
+- Prometheus connector
+- log ingestion
+- incident timelines
+- security intelligence
+- action/execution layer
+- long-term trend analysis
+
+## Architecture
 
 ```text
-Telemetry → Smell Detection → Pattern Retrieval → Recommendation → Critic → Planner → Reasoning (explanation)
+Kubernetes API
+    ->
+Kubernetes Connector Worker
+    ->
+Normalizer + Topology Builder
+    ->
+Postgres Snapshots
+    ->
+Recommendation API
+    ->
+LangGraph Pipeline
+    ->
+Smells + Recommendations + Critiques + Plan + Report
 ```
 
-Design principles:
+Important design rule: the API does not call Kubernetes directly. The worker collects infrastructure data and writes snapshots. The API reads the latest snapshot, builds `GraphState`, and runs the reasoning graph.
 
-| Layer | Role |
-|--------|------|
-| Detection | Deterministic rules over normalized signals + topology |
-| Knowledge | Structured patterns (`ArchitecturePattern`) and smell→pattern mapping |
-| Explanation | Deterministic markdown report;  LLM pass for clarity |
+## Reasoning Pipeline
 
----
+The LangGraph pipeline is linear:
 
-## 🔁 Multi-Agent Pipeline (LangGraph)
+```text
+Telemetry -> Smell Detection -> Pattern Retrieval -> Recommendation -> Critic -> Planner -> Reasoning
+```
 
-Each node is a focused agent operating on shared state (`GraphState`):
+Node responsibilities:
 
-### 1. Telemetry Agent
+- `telemetry`: normalize raw inputs into canonical signal and topology keys
+- `smells`: detect deterministic architecture smells
+- `retrieval`: map smell types to architecture patterns
+- `recommend`: rank mapped patterns into recommendation records
+- `critic`: apply `avoid_when` constraints and structured pattern rules
+- `planner`: turn recommendations into ordered plan steps
+- `reasoning`: produce the final explanation report
 
-Normalizes input into canonical signals and topology.
+The graph is defined in `agent/app/graph.py`. Node implementations live in `agent/app/nodes/`.
 
-### 2. Smell Agent
+## Data Foundation
 
-Detects **architecture smells** using deterministic rules.
+The Kubernetes connector lives under `agent/app/connectors/kubernetes/`.
 
-> Smells = signals of stress (NOT root causes)
+Main files:
 
----
+- `client.py`: builds Kubernetes API clients
+- `collector.py`: pulls pods, deployments, services, pod metrics, and HPAs
+- `normalizer.py`: converts Kubernetes objects into the canonical snapshot shape
+- `topology_builder.py`: infers service dependencies
+- `repository.py`: stores and loads snapshots from Postgres
+- `worker.py`: runs the collect -> normalize -> persist loop
 
-### 3. Retrieval Agent
+The current snapshot model includes:
 
-Maps smells → candidate architecture patterns.
+- per-service CPU and memory utilization
+- raw CPU cores and memory bytes when metrics-server is available
+- desired, available, and unavailable replicas
+- restart totals
+- HPA scaling pressure
+- queue backlog from HPA external metrics when available
+- topology edges
+- data quality hints
 
----
+Canonical snapshot types are defined in `agent/app/state.py`:
 
-### 4. Recommendation Agent
+- `ServiceSnapshot`
+- `SnapshotSignals`
+- `SnapshotDataQuality`
+- `ClusterSnapshot`
 
-Generates structured recommendations:
+## Storage Model
 
-- pattern
+Postgres is the current persistence layer.
 
-- solution
+ArchAgent uses relational tables for stable query paths and JSONB for evolving snapshot shape:
 
-- impact
+- `runs`: one row per ingestion snapshot, with full `snapshot` JSONB
+- `service_metrics`: queryable per-service metrics
+- `signals`: stable signal columns plus extensible `payload` JSONB
+- `topology`: dependency edges per run
 
-- effort
+JSONB is preferred over a separate NoSQL datastore at this stage because snapshots still need run history, relational joins, and simple operational deployment.
 
-- priority
+## Topology Inference
 
----
+Topology nodes are logical services derived from Kubernetes labels:
 
-### 5. Critic Agent
+- `app.kubernetes.io/name`
+- `app`
+- `k8s-app`
 
-Applies constraints (`avoid_when`) to detect risks.
+Edges can be inferred from:
 
----
+- Kubernetes service DNS values in environment variables
+- short service DNS names such as `jobs.default.svc`
+- URL-style values such as `postgres://postgres:5432/app`
+- host/port values such as `redis:6379`
+- manual dependency annotations
 
-### 6. Planner Agent
+Manual annotation format:
 
-Creates a prioritized execution plan.
+```yaml
+metadata:
+  annotations:
+    archagent.io/depends-on: "db:postgres,queue:worker"
+```
 
----
+Supported dependency prefixes include:
 
-### 7. Reasoning Agent
+- `db`
+- `database`
+- `queue`
+- `broker`
+- `stream`
+- `http`
+- `grpc`
+- `api`
 
-Produces explanation report.
+## Smells
 
-- deterministic fallback
+Smells are deterministic labels for architecture stress. They trigger pattern retrieval; they are not fixes by themselves.
 
-- optional LLM for readability only
+Current smell examples:
 
-Orchestration lives in `agent/app/graph.py`. Node implementations are under `agent/app/nodes/`.
-
----
-
-## Core concepts
-
-### Signals and topology (inputs)
-
-- **Signals**: e.g. request/DB latency, CPU, queue backlog, error rate (see `TelemetrySignals` in `agent/app/state.py` and aliases in `agent/app/nodes/telemetry.py`).
-- **Topology**: services, edges (who calls whom, edge types), optional critical stores/queues.
-
-### Architecture smells
-
-Smells are **labels for patterns of stress** inferred from signals/topology (e.g. `read_scaling_bottleneck`, `cpu_saturation`). They **trigger** retrieval; they are not fixes by themselves.
-
-Examples:
 - `read_scaling_bottleneck`
 - `cpu_saturation`
+- `memory_pressure`
 - `queue_backlog`
+- `restart_instability`
+- `replica_unavailability`
+- `autoscaling_pressure`
+- `single_instance_risk`
 - `coupling_risk`
+- `high_error_rate`
 
-### Architecture patterns
+Kubernetes-native smells make the system useful before Prometheus ingestion exists. Latency and error-rate based smells still require inline input today and will be better supported once a Prometheus connector is added.
 
-Patterns are the unit of reusable knowledge: use/avoid conditions, solutions, tradeoffs, impact/effort/confidence. Files live in `agent/app/patterns/` (JSON validated by `agent/app/models/pattern.py`).
+## Patterns
 
-Examples:
-- read replicas  
-- caching  
-- load balancing  
-- queue partitioning
+Architecture patterns live in `agent/app/patterns/` as JSON files validated by `ArchitecturePattern` in `agent/app/models/pattern.py`.
 
-### Smell → pattern mapping
+Each pattern can define:
 
-`agent/app/services/pattern_loader.py` defines `SMELL_TO_PATTERN_MAP`: explicit, explainable links from smell types to pattern ids. This can later evolve into semantic or graph-based retrieval.
+- `use_when`
+- `avoid_when`
+- `solutions`
+- `tradeoffs`
+- `impact`
+- `effort`
+- `confidence`
 
----
+Smell-to-pattern routing is explicit in `agent/app/services/pattern_loader.py` through `SMELL_TO_PATTERN_MAP`.
 
-## State model
+## API Layout
 
-`GraphState` (TypedDict in `agent/app/state.py`) flows through the pipeline:
+FastAPI app construction lives in `agent/app/main.py`.
 
-| Field | Set by |
-|--------|--------|
-| `signals` | normalized metrics |
-| `topology` | system structure |
-| `smells` | detected stress signals |
-| `patterns` | candidate solutions |
-| `recommendations` | ranked outputs |
-| `critiques` | risk warnings |
-| `final_plan` | execution steps |
-| `explanation_report` | human-readable output |
+Route handlers are split into API modules:
 
----
+- `agent/app/api/health.py`
+- `agent/app/api/recommendations.py`
 
-## API
+Endpoints:
 
-- `POST /v1/recommendations` — Run the full pipeline; returns JSON:
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/healthz` | Liveness check |
+| `POST` | `/v1/recommendations` | Run the recommendation pipeline |
 
-  - `smells` — type, severity, confidence, evidence  
-  - `recommendations` — pattern, solution, impact, effort, priority, reason  
-  - `critiques` — pattern_id, level, message, evidence  
-  - `plan` — ordered steps with impact/effort  
-  - `explanation_report` — markdown narrative  
+### Recommendation Modes
 
----
-
-## Quickstart
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-```bash
-uvicorn agent.app.main:app --reload
-```
-
-## Run with Docker Compose
-
-1) Create env file:
-
-```bash
-cp .env.example .env
-```
-
-2) Build and start API + ingestion worker + Postgres:
-
-```bash
-docker compose up --build
-```
-
-3) Validate:
-
-```bash
-curl -s http://127.0.0.1:8000/healthz
-```
-
-Notes:
-- API is exposed on `localhost:8000`
-- Postgres is exposed on `localhost:5432`
-- Worker reads kube credentials from `${HOME}/.kube/config` (mounted read-only at `/kube/config`).
-- If kubeconfig references local cert/key files (for example Minikube paths like `${HOME}/.minikube/...`), those paths must also be mounted into the worker container.
-- For in-cluster deployment, remove the kubeconfig mount and rely on in-cluster service account auth.
-
-Example request:
+Inline mode:
 
 ```bash
 curl -s http://127.0.0.1:8000/v1/recommendations \
@@ -263,22 +258,126 @@ curl -s http://127.0.0.1:8000/v1/recommendations \
   }' | jq .
 ```
 
-### Configuration
+Snapshot mode:
 
-Copy `.env.example` to `.env`. Variables use the `ARCHAGENT_` prefix (see `agent/app/config.py`):
+```bash
+curl -s -X POST http://127.0.0.1:8000/v1/recommendations | jq .
+```
 
-- `ARCHAGENT_PATTERN_STORE` — `filesystem` (default; Postgres path reserved)
-- `ARCHAGENT_PATTERNS_PATH` — catalog directory
-- `ARCHAGENT_LLM_REASONING_ENABLED`, `ARCHAGENT_LLM_PROVIDER`, `ARCHAGENT_LLM_MODEL` — optional explanation LLM
-- `ARCHAGENT_OPENAI_API_KEY` or `ARCHAGENT_OLLAMA_BASE_URL` — provider credentials
+Snapshot mode uses the latest stored Kubernetes snapshot. To analyze a specific run:
 
----
+```bash
+curl -s -X POST "http://127.0.0.1:8000/v1/recommendations?run_id=<uuid>" | jq .
+```
+
+Response shape:
+
+- `snapshot_run_id`
+- `smells`
+- `recommendations`
+- `critiques`
+- `plan`
+- `explanation_report`
+
+## Quickstart
+
+Create a virtualenv and install dependencies:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Run the API:
+
+```bash
+uvicorn agent.app.main:app --reload
+```
+
+Validate:
+
+```bash
+curl -s http://127.0.0.1:8000/healthz
+```
+
+## Docker Compose
+
+Create an env file:
+
+```bash
+cp .env.example .env
+```
+
+Start API, worker, and Postgres:
+
+```bash
+docker compose up --build
+```
+
+Services:
+
+- API: `http://127.0.0.1:8000`
+- Postgres: `localhost:5432`
+- Worker: `python -m agent.app.connectors.kubernetes.worker`
+
+The worker reads kube credentials from `${HOME}/.kube/config`, mounted into the container at `/kube/config`.
+
+If kubeconfig references local cert/key files, those paths must also be mounted. The compose file currently mounts `${HOME}/.minikube` for local Minikube-style credentials.
+
+For in-cluster deployment, remove the kubeconfig mount and rely on in-cluster service account auth.
+
+## Configuration
+
+Environment variables use the `ARCHAGENT_` prefix. See `agent/app/config.py` and `.env.example`.
+
+Common variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `ARCHAGENT_ENVIRONMENT` | Runtime environment: `dev`, `test`, or `prod` |
+| `ARCHAGENT_PATTERN_STORE` | Pattern store mode. Current implementation: `filesystem` |
+| `ARCHAGENT_PATTERNS_PATH` | Path to JSON architecture patterns |
+| `ARCHAGENT_POSTGRES_DSN` | Postgres connection string |
+| `ARCHAGENT_K8S_AUTO_MIGRATE` | Auto-create/update connector tables |
+| `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
+| `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM pass |
+| `ARCHAGENT_LLM_PROVIDER` | `openai` or `ollama` |
+| `ARCHAGENT_LLM_MODEL` | Model used for explanation polish |
+| `ARCHAGENT_OPENAI_API_KEY` | OpenAI API key when using OpenAI |
+| `ARCHAGENT_OLLAMA_BASE_URL` | Ollama OpenAI-compatible base URL |
 
 ## Tests
 
+Use the repo virtualenv so LangGraph and the app dependencies are available:
+
 ```bash
-pytest
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
 ```
 
-Nodes are written to be callable independently for unit tests; the graph is covered in `tests/test_graph_pipeline.py`.
+Current suite coverage includes:
 
+- graph pipeline execution
+- recommendation snapshot mode
+- smell rules
+- pattern loading and smell mapping
+- critic behavior
+- planner behavior
+- reasoning report generation
+- Kubernetes normalizer behavior
+- topology inference behavior
+
+## Repository Structure
+
+```text
+agent/app/
+  api/                    FastAPI route handlers
+  connectors/kubernetes/  Kubernetes collection, normalization, topology, persistence
+  models/                 Domain models
+  nodes/                  LangGraph node implementations
+  patterns/               Architecture pattern catalog
+  services/               Smell rules, pattern loading, snapshot loading
+  graph.py                LangGraph orchestration
+  main.py                 FastAPI app construction
+  state.py                API and graph state models
+```
