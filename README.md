@@ -211,6 +211,33 @@ pip install -r requirements.txt
 uvicorn agent.app.main:app --reload
 ```
 
+## Run with Docker Compose
+
+1) Create env file:
+
+```bash
+cp .env.example .env
+```
+
+2) Build and start API + ingestion worker + Postgres:
+
+```bash
+docker compose up --build
+```
+
+3) Validate:
+
+```bash
+curl -s http://127.0.0.1:8000/healthz
+```
+
+Notes:
+- API is exposed on `localhost:8000`
+- Postgres is exposed on `localhost:5432`
+- Worker reads kube credentials from `${HOME}/.kube/config` (mounted read-only at `/kube/config`).
+- If kubeconfig references local cert/key files (for example Minikube paths like `${HOME}/.minikube/...`), those paths must also be mounted into the worker container.
+- For in-cluster deployment, remove the kubeconfig mount and rely on in-cluster service account auth.
+
 Example request:
 
 ```bash

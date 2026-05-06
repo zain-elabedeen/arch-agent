@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # When pattern_store="postgres"
     postgres_dsn: Optional[str] = None
 
+    # Kubernetes connector worker: poll interval (seconds) when running ``worker`` module.
+    k8s_poll_interval_sec: int = 45
+
+    # Auto-create connector tables on API/worker startup when ``postgres_dsn`` is set.
+    k8s_auto_migrate: bool = True
+
     # Pattern catalog location for filesystem mode
     patterns_path: str = "agent/app/patterns"
 

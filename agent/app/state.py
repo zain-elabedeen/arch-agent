@@ -95,10 +95,22 @@ class PlanStep(BaseModel):
 
 
 class RecommendationRequest(BaseModel):
-    """POST body: raw metric bag plus topology (telemetry node normalizes signal keys)."""
+    """
+    POST body: raw metric bag plus topology (telemetry node normalizes signal keys).
+
+    When ``signals`` is empty and ``topology`` has no services or edges, the API
+    loads the latest Kubernetes snapshot from Postgres (requires ``ARCHAGENT_POSTGRES_DSN``).
+    """
 
     signals: Dict[str, float] = Field(default_factory=dict)
     topology: ServiceTopology = Field(default_factory=ServiceTopology)
+
+
+def recommendation_request_has_inline_payload(req: RecommendationRequest) -> bool:
+    """True when the client supplied explicit signals or topology to analyze."""
+    if req.signals:
+        return True
+    return bool(req.topology.services or req.topology.edges)
 
 
 class RecommendationResponse(BaseModel):
