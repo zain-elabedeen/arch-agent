@@ -1,5 +1,7 @@
 # ArchAgent
 
+[![Tests](https://img.shields.io/github/actions/workflow/status/zain-elabedeen/archi-agent/ci.yml?branch=main&label=tests)](https://github.com/zain-elabedeen/archi-agent/actions/workflows/ci.yml)
+
 ArchAgent is an infrastructure architecture intelligence system. It turns structured runtime data and service topology into architecture smells, ranked recommendations, risk critiques, execution plans, and an explanation report.
 
 ## What It Is
