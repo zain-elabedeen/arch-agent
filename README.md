@@ -2,7 +2,7 @@
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/zain-elabedeen/archi-agent/ci.yml?branch=main&label=tests)](https://github.com/zain-elabedeen/archi-agent/actions/workflows/ci.yml)
 
-ArchAgent is an infrastructure architecture intelligence system. It turns structured runtime data and service topology into architecture smells, ranked recommendations, risk critiques, execution plans, and an explanation report.
+ArchAgent is a cloud infrastructure intelligence system. It uses runtime data and service topology to detect infratsruture smells,  create architeture recommendations, risk critiques and execution plans
 
 ## What It Is
 
@@ -10,7 +10,7 @@ ArchAgent is a reasoning layer on top of infrastructure data.
 
 It consumes:
 
-- Kubernetes workload state
+- Workload state
 - normalized runtime signals
 - inferred or annotated service topology
 - curated architecture patterns
@@ -24,17 +24,7 @@ It produces:
 - a prioritized plan
 - a human-readable report
 
-## What It Is Not
-
-ArchAgent is not:
-
-- a monitoring platform
-- an alerting system
-- a metrics database
-- an auto-remediation engine
-- an LLM DevOps chatbot
-
-It does not replace Prometheus, Datadog, Grafana, or Kubernetes. It sits above infrastructure signals and converts them into architecture reasoning.
+ArchAgent sits above infrastructure signals  (Prometheus, Datadog, Grafana, or Kubernetes..)  and converts them into architecture reasoning.
 
 ## Current Scope
 
