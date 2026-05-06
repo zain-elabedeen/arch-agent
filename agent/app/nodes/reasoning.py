@@ -8,6 +8,7 @@ model invents or drops facts, output is rejected in favor of the template report
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List
 
 from agent.app.config import Settings
@@ -316,10 +317,162 @@ def _is_llm_output_consistent(state: GraphState, llm_output: str) -> bool:
     return True
 
 
+_LLM_SYSTEM_INSTRUCTION = "You explain existing architecture outputs without changing the underlying facts."
+
+
+def _normalize_llm_provider(provider: str) -> str:
+    aliases = {
+        "vertex_gemini": "agent_platform_gemini",
+        "gcp_gemini": "agent_platform_gemini",
+        "vertex_claude": "agent_platform_claude",
+        "gcp_claude": "agent_platform_claude",
+    }
+    return aliases.get(provider, provider)
+
+
+def _openai_compatible_report(state: GraphState, settings: Settings, provider: str) -> str | None:
+    try:
+        from openai import OpenAI  # type: ignore[reportMissingImports]
+    except Exception:
+        logger.warning("reasoning_agent openai sdk unavailable run_id=%s", state.get("run_id", "n/a"))
+        return None
+
+    if provider == "openai":
+        if not settings.openai_api_key:
+            logger.info(
+                "reasoning_agent llm disabled run_id=%s provider=openai api_key_set=%s",
+                state.get("run_id", "n/a"),
+                bool(settings.openai_api_key),
+            )
+            return None
+        client = OpenAI(api_key=settings.openai_api_key)
+    else:
+        # Ollama exposes an OpenAI-compatible API at /v1.
+        # A placeholder key is accepted for local usage.
+        client = OpenAI(base_url=settings.ollama_base_url, api_key="ollama")
+
+    resp = client.chat.completions.create(
+        model=settings.llm_model,
+        temperature=0.2,
+        messages=[
+            {
+                "role": "system",
+                "content": _LLM_SYSTEM_INSTRUCTION,
+            },
+            {"role": "user", "content": _build_llm_prompt(state)},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip() or None
+
+
+def _resolve_gcp_project_id(settings: Settings) -> str | None:
+    return (
+        settings.gcp_project_id
+        or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("GOOGLE_CLOUD_PROJECT_ID")
+    )
+
+
+def _gcp_project_id(state: GraphState, settings: Settings, provider: str) -> str | None:
+    project_id = _resolve_gcp_project_id(settings)
+    if project_id:
+        return project_id
+    logger.info(
+        "reasoning_agent llm disabled run_id=%s provider=%s gcp_project_id_set=%s",
+        state.get("run_id", "n/a"),
+        provider,
+        bool(project_id),
+    )
+    return None
+
+
+def _gcp_location(settings: Settings) -> str:
+    return settings.gcp_location or os.environ.get("GOOGLE_CLOUD_LOCATION") or "global"
+
+
+def _agent_platform_gemini_report(state: GraphState, settings: Settings, provider: str) -> str | None:
+    project_id = _gcp_project_id(state, settings, provider)
+    if not project_id:
+        return None
+
+    try:
+        from google import genai  # type: ignore[reportMissingImports]
+        from google.genai.types import HttpOptions  # type: ignore[reportMissingImports]
+    except Exception:
+        logger.warning("reasoning_agent google-genai sdk unavailable run_id=%s", state.get("run_id", "n/a"))
+        return None
+
+    # The current Agent Platform Gen AI SDK still names this endpoint selector
+    # ``vertexai=True``. Keep that SDK detail internal and expose Agent Platform
+    # provider names in ArchAgent config/docs.
+    client = genai.Client(
+        vertexai=True,
+        project=project_id,
+        location=_gcp_location(settings),
+        http_options=HttpOptions(api_version=settings.gcp_genai_api_version),
+    )
+    try:
+        resp = client.models.generate_content(
+            model=settings.llm_model,
+            contents=_build_llm_prompt(state),
+            config={
+                "temperature": 0.2,
+                "system_instruction": _LLM_SYSTEM_INSTRUCTION,
+            },
+        )
+        return (getattr(resp, "text", None) or "").strip() or None
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            close()
+
+
+def _extract_anthropic_text(message: Any) -> str:
+    parts: List[str] = []
+    for block in getattr(message, "content", []) or []:
+        if isinstance(block, str):
+            parts.append(block)
+            continue
+        if isinstance(block, dict):
+            text = block.get("text")
+        else:
+            text = getattr(block, "text", None)
+        if text:
+            parts.append(str(text))
+    return "\n".join(parts).strip()
+
+
+def _agent_platform_claude_report(state: GraphState, settings: Settings, provider: str) -> str | None:
+    project_id = _gcp_project_id(state, settings, provider)
+    if not project_id:
+        return None
+
+    try:
+        from anthropic import AnthropicVertex  # type: ignore[reportMissingImports]
+    except Exception:
+        logger.warning("reasoning_agent anthropic agent platform sdk unavailable run_id=%s", state.get("run_id", "n/a"))
+        return None
+
+    client = AnthropicVertex(project_id=project_id, region=_gcp_location(settings))
+    try:
+        message = client.messages.create(
+            model=settings.llm_model,
+            max_tokens=3000,
+            temperature=0.2,
+            system=_LLM_SYSTEM_INSTRUCTION,
+            messages=[{"role": "user", "content": _build_llm_prompt(state)}],
+        )
+        return _extract_anthropic_text(message) or None
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            close()
+
+
 def _llm_report(state: GraphState, settings: Settings) -> str | None:
     """
-    Call OpenAI-compatible chat completion to polish the report; return None on
-    disabled config, missing SDK/key, or recoverable API errors (caller falls back).
+    Polish the report through the configured provider; return None on disabled
+    config, missing SDK/credentials, or recoverable API errors.
     """
     if not settings.llm_reasoning_enabled:
         logger.info(
@@ -328,61 +481,58 @@ def _llm_report(state: GraphState, settings: Settings) -> str | None:
             settings.llm_reasoning_enabled,
         )
         return None
-    try:
-        from openai import OpenAI  # type: ignore[reportMissingImports]
-    except Exception:
-        logger.exception("reasoning_agent failed to import OpenAI SDK run_id=%s", state.get("run_id", "n/a"))
-        return None
 
+    provider = _normalize_llm_provider(settings.llm_provider)
     try:
         logger.info(
-            "reasoning_agent llm config run_id=%s provider=%s model=%s base_url=%s",
+            "reasoning_agent llm config run_id=%s provider=%s model=%s base_url=%s gcp_location=%s gcp_project_id_set=%s gcp_genai_api_version=%s",
             state.get("run_id", "n/a"),
-            settings.llm_provider,
+            provider,
             settings.llm_model,
-            settings.ollama_base_url if settings.llm_provider == "ollama" else "default_openai",
+            settings.ollama_base_url if provider == "ollama" else "n/a",
+            _gcp_location(settings) if provider.startswith("agent_platform_") else "n/a",
+            bool(_resolve_gcp_project_id(settings)) if provider.startswith("agent_platform_") else False,
+            settings.gcp_genai_api_version if provider == "agent_platform_gemini" else "n/a",
         )
 
-        if settings.llm_provider == "openai":
-            if not settings.openai_api_key:
-                logger.info(
-                    "reasoning_agent llm disabled run_id=%s provider=openai api_key_set=%s",
-                    state.get("run_id", "n/a"),
-                    bool(settings.openai_api_key),
-                )
-                return None
-            client = OpenAI(api_key=settings.openai_api_key)
+        if provider in {"openai", "ollama"}:
+            content = _openai_compatible_report(state, settings, provider)
+        elif provider == "agent_platform_gemini":
+            content = _agent_platform_gemini_report(state, settings, provider)
+        elif provider == "agent_platform_claude":
+            content = _agent_platform_claude_report(state, settings, provider)
         else:
-            # Ollama exposes an OpenAI-compatible API at /v1.
-            # A placeholder key is accepted for local usage.
-            client = OpenAI(base_url=settings.ollama_base_url, api_key="ollama")
+            logger.warning(
+                "reasoning_agent unsupported llm provider run_id=%s provider=%s",
+                state.get("run_id", "n/a"),
+                settings.llm_provider,
+            )
+            return None
 
-        resp = client.chat.completions.create(
-            model=settings.llm_model,
-            temperature=0.2,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You explain existing architecture outputs without changing the underlying facts.",
-                },
-                {"role": "user", "content": _build_llm_prompt(state)},
-            ],
-        )
-        content = (resp.choices[0].message.content or "").strip()
+        if not content:
+            logger.info(
+                "reasoning_agent llm returned no content run_id=%s provider=%s model=%s",
+                state.get("run_id", "n/a"),
+                provider,
+                settings.llm_model,
+            )
+            return None
+
         logger.info(
             "reasoning_agent llm success run_id=%s provider=%s model=%s report_chars=%d",
             state.get("run_id", "n/a"),
-            settings.llm_provider,
+            provider,
             settings.llm_model,
             len(content),
         )
-        return content or None
+        return content
     except Exception as exc:
         # Avoid noisy tracebacks for expected API failures (quota, auth, rate limits).
         err_name = exc.__class__.__name__
         logger.warning(
-            "reasoning_agent llm call failed run_id=%s error_type=%s message=%s",
+            "reasoning_agent llm call failed run_id=%s provider=%s error_type=%s message=%s",
             state.get("run_id", "n/a"),
+            provider,
             err_name,
             str(exc),
         )

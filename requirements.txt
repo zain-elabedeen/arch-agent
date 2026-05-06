@@ -8,3 +8,5 @@ psycopg[binary]>=3.2.0
 pytest>=8.0.0
 openai>=1.0.0
 kubernetes>=30.0.0
+google-genai>=1.0.0
+anthropic[vertex]>=0.40.0

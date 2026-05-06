@@ -1,9 +1,14 @@
 from agent.app.nodes.reasoning import (
     _build_llm_prompt,
+    _gcp_location,
+    _gcp_project_id,
     _is_llm_output_consistent,
+    _llm_report,
+    _normalize_llm_provider,
     build_explanation_report,
     reasoning_node,
 )
+from agent.app.config import Settings
 from agent.app.models.pattern import ArchitecturePattern
 from agent.app.state import Recommendation, Critique
 
@@ -113,3 +118,39 @@ def test_llm_output_consistency_rejects_false_no_smells_claim():
     }
     llm_output = "## Runtime Architecture Report\n\nNo smells detected."
     assert _is_llm_output_consistent(state, llm_output) is False
+
+
+def test_gcp_provider_aliases_are_supported():
+    assert Settings(llm_provider="gcp_gemini").llm_provider == "gcp_gemini"
+    assert Settings(llm_provider="gcp_claude").llm_provider == "gcp_claude"
+    assert Settings(llm_provider="agent_platform_gemini").llm_provider == "agent_platform_gemini"
+    assert Settings(llm_provider="agent_platform_claude").llm_provider == "agent_platform_claude"
+    assert _normalize_llm_provider("vertex_gemini") == "agent_platform_gemini"
+    assert _normalize_llm_provider("gcp_gemini") == "agent_platform_gemini"
+    assert _normalize_llm_provider("vertex_claude") == "agent_platform_claude"
+    assert _normalize_llm_provider("gcp_claude") == "agent_platform_claude"
+    assert _normalize_llm_provider("ollama") == "ollama"
+
+
+def test_agent_platform_provider_without_project_falls_back_without_sdk_import(monkeypatch):
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT", raising=False)
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT_ID", raising=False)
+    state = {"run_id": "test-run", "smells": [], "recommendations": [], "critiques": []}
+    settings = Settings(
+        llm_reasoning_enabled=True,
+        llm_provider="agent_platform_gemini",
+        llm_model="gemini-2.5-flash",
+        gcp_project_id=None,
+    )
+
+    assert _llm_report(state, settings) is None
+
+
+def test_agent_platform_project_and_location_can_use_google_env(monkeypatch):
+    state = {"run_id": "test-run"}
+    settings = Settings(gcp_project_id=None, gcp_location="")
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "infra-agent-dev")
+    monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+
+    assert _gcp_project_id(state, settings, "agent_platform_gemini") == "infra-agent-dev"
+    assert _gcp_location(settings) == "us-central1"

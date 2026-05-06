@@ -356,10 +356,54 @@ Common variables:
 | `ARCHAGENT_K8S_INCLUDE_NAMESPACES` | Optional comma-separated allow-list of namespaces |
 | `ARCHAGENT_K8S_EXCLUDE_NAMESPACES` | Comma-separated namespace exclude list |
 | `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM pass |
-| `ARCHAGENT_LLM_PROVIDER` | `openai` or `ollama` |
+| `ARCHAGENT_LLM_PROVIDER` | `openai`, `ollama`, `agent_platform_gemini`, or `agent_platform_claude` |
 | `ARCHAGENT_LLM_MODEL` | Model used for explanation polish |
 | `ARCHAGENT_OPENAI_API_KEY` | OpenAI API key when using OpenAI |
 | `ARCHAGENT_OLLAMA_BASE_URL` | Ollama OpenAI-compatible base URL |
+| `ARCHAGENT_GCP_PROJECT_ID` | GCP project ID for Agent Platform providers |
+| `ARCHAGENT_GCP_LOCATION` | Agent Platform region, multi-region, or `global` endpoint |
+| `ARCHAGENT_GCP_GENAI_API_VERSION` | Google Gen AI SDK API version. Default: `v1` |
+
+### LLM Providers
+
+The LLM is only used by the reasoning node to rewrite the deterministic report into a clearer teaching-oriented explanation. Smell detection, pattern retrieval, criticism, and planning stay rule-based.
+
+Local Ollama:
+
+```bash
+ARCHAGENT_LLM_PROVIDER=ollama
+ARCHAGENT_LLM_MODEL=llama3.1
+ARCHAGENT_OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
+Gemini on Gemini Enterprise Agent Platform:
+
+```bash
+ARCHAGENT_LLM_PROVIDER=agent_platform_gemini
+ARCHAGENT_LLM_MODEL=gemini-2.5-flash
+ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
+ARCHAGENT_GCP_LOCATION=global
+ARCHAGENT_GCP_GENAI_API_VERSION=v1
+```
+
+Claude on Gemini Enterprise Agent Platform:
+
+```bash
+ARCHAGENT_LLM_PROVIDER=agent_platform_claude
+ARCHAGENT_LLM_MODEL=claude-sonnet-4-5@20250929
+ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
+ARCHAGENT_GCP_LOCATION=global
+```
+
+Agent Platform providers use Google Application Default Credentials. For local development, run:
+
+```bash
+gcloud auth application-default login
+```
+
+For service accounts, set `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json` in the process environment. The GCP project must have the Agent Platform API enabled, `roles/aiplatform.user` or equivalent permissions, and access to the selected Gemini or Claude model in the configured location.
+
+The Google Gen AI SDK also recognizes `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, and `GOOGLE_GENAI_USE_VERTEXAI=True` when they are exported in the process environment. ArchAgent still prefers `ARCHAGENT_GCP_PROJECT_ID` and `ARCHAGENT_GCP_LOCATION` so the app configuration remains explicit. Legacy provider aliases `vertex_gemini`, `gcp_gemini`, `vertex_claude`, and `gcp_claude` are accepted for backward compatibility.
 
 ## Tests
 
