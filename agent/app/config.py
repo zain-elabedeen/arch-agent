@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     # Kubernetes connector worker: poll interval (seconds) when running ``worker`` module.
     k8s_poll_interval_sec: int = 45
 
+    # Namespace filters for local/dev clusters. Empty include means "all allowed
+    # namespaces"; excludes remove Kubernetes/platform namespaces by default.
+    k8s_include_namespaces: str = ""
+    k8s_exclude_namespaces: str = "kube-system,kube-public,kube-node-lease,kubernetes-dashboard"
+
     # Auto-create connector tables on API/worker startup when ``postgres_dsn`` is set.
     k8s_auto_migrate: bool = True
 
@@ -61,4 +66,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Singleton settings from env; call ``.cache_clear()`` before reload (see ``main``)."""
     return Settings()
-

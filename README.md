@@ -125,6 +125,17 @@ The current snapshot model includes:
 - topology edges
 - data quality hints
 
+By default, ingestion excludes Kubernetes/platform namespaces so local Minikube
+control-plane components do not drive application architecture recommendations:
+
+- `kube-system`
+- `kube-public`
+- `kube-node-lease`
+- `kubernetes-dashboard`
+
+Use `ARCHAGENT_K8S_INCLUDE_NAMESPACES` and `ARCHAGENT_K8S_EXCLUDE_NAMESPACES`
+to scope the worker to the namespaces you want analyzed.
+
 Canonical snapshot types are defined in `agent/app/state.py`:
 
 - `ServiceSnapshot`
@@ -139,9 +150,10 @@ Postgres is the current persistence layer.
 ArchAgent uses relational tables for stable query paths and JSONB for evolving snapshot shape:
 
 - `runs`: one row per ingestion snapshot, with full `snapshot` JSONB
-- `service_metrics`: queryable per-service metrics
+- `runs.data_quality`: collector completeness and inference quality JSONB
+- `service_metrics`: queryable per-service metrics, namespace, replica health, and restart counts
 - `signals`: stable signal columns plus extensible `payload` JSONB
-- `topology`: dependency edges per run
+- `topology`: dependency edges per run, including inference provenance when known
 
 JSONB is preferred over a separate NoSQL datastore at this stage because snapshots still need run history, relational joins, and simple operational deployment.
 
@@ -341,6 +353,8 @@ Common variables:
 | `ARCHAGENT_POSTGRES_DSN` | Postgres connection string |
 | `ARCHAGENT_K8S_AUTO_MIGRATE` | Auto-create/update connector tables |
 | `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
+| `ARCHAGENT_K8S_INCLUDE_NAMESPACES` | Optional comma-separated allow-list of namespaces |
+| `ARCHAGENT_K8S_EXCLUDE_NAMESPACES` | Comma-separated namespace exclude list |
 | `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM pass |
 | `ARCHAGENT_LLM_PROVIDER` | `openai` or `ollama` |
 | `ARCHAGENT_LLM_MODEL` | Model used for explanation polish |

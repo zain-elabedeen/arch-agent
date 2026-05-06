@@ -73,6 +73,8 @@ class SnapshotDataQuality(BaseModel):
     metrics_server_available: bool = False
     services_with_metrics: int = 0
     services_without_metrics: int = 0
+    excluded_namespaces: List[str] = Field(default_factory=list)
+    pods_excluded_by_namespace: int = 0
     pods_without_app_label: int = 0
     topology_edges_inferred: int = 0
     topology_confidence: str = "low"
@@ -86,6 +88,7 @@ class TopologyEdge(BaseModel):
     from_service: str = Field(alias="from")
     to_service: str = Field(alias="to")
     type: str  # e.g. "http", "db", "queue"
+    inferred_from: Optional[str] = None
 
 
 class ServiceTopology(BaseModel):

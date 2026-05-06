@@ -26,6 +26,23 @@ from agent.app.logging_utils import configure_logging, get_logger
 logger = get_logger("agent.connectors.k8s.worker")
 
 
+def _namespace_csv(value: str) -> set[str]:
+    """Parse comma-separated namespace env settings into a clean set."""
+    return {item.strip() for item in (value or "").split(",") if item.strip()}
+
+
+def _normalize_collected(c, settings):
+    return normalize(
+        c.pods,
+        c.deployments,
+        c.services,
+        c.pod_metrics,
+        c.hpas,
+        include_namespaces=_namespace_csv(settings.k8s_include_namespaces),
+        exclude_namespaces=_namespace_csv(settings.k8s_exclude_namespaces),
+    )
+
+
 def run_ingestion_once() -> None:
     settings = get_settings()
     if not settings.postgres_dsn:
@@ -36,7 +53,7 @@ def run_ingestion_once() -> None:
 
     apis = build_apis()
     c = collect(apis)
-    normalized = normalize(c.pods, c.deployments, c.services, c.pod_metrics, c.hpas)
+    normalized = _normalize_collected(c, settings)
 
     with engine.begin() as conn:
         rid = save_run(conn, normalized)
@@ -90,7 +107,7 @@ def main() -> None:
             if settings.k8s_auto_migrate:
                 ensure_connector_schema(engine)
             c = collect(apis)
-            normalized = normalize(c.pods, c.deployments, c.services, c.pod_metrics, c.hpas)
+            normalized = _normalize_collected(c, settings)
             with engine.begin() as conn:
                 rid = save_run(conn, normalized)
             logger.info(

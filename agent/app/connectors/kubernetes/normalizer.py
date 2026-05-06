@@ -6,12 +6,46 @@ aggregate signals, topology) before persistence.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, Iterable, List, Set, Tuple
 
 from kubernetes.client import V1Deployment, V1Pod, V1Service
 
 from agent.app.connectors.kubernetes.kube_labels import app_name_for_labels, app_name_for_pod
 from agent.app.connectors.kubernetes.topology_builder import build_topology
+
+DEFAULT_EXCLUDED_NAMESPACES = frozenset(
+    {"kube-system", "kube-public", "kube-node-lease", "kubernetes-dashboard"}
+)
+
+
+def _namespace_set(values: Iterable[str] | None) -> Set[str]:
+    return {str(v).strip() for v in values or [] if str(v).strip()}
+
+
+def _object_namespace(obj: Any) -> str:
+    metadata = getattr(obj, "metadata", None)
+    return str(getattr(metadata, "namespace", "") or "")
+
+
+def _metric_namespace(item: Dict[str, Any]) -> str:
+    return str((item.get("metadata") or {}).get("namespace") or "")
+
+
+def _namespace_allowed(ns: str, include: Set[str], exclude: Set[str]) -> bool:
+    if include and ns not in include:
+        return False
+    return ns not in exclude
+
+
+def _filter_by_namespace(items: List[Any], include: Set[str], exclude: Set[str]) -> Tuple[List[Any], int]:
+    kept: List[Any] = []
+    skipped = 0
+    for item in items:
+        if _namespace_allowed(_object_namespace(item), include, exclude):
+            kept.append(item)
+        else:
+            skipped += 1
+    return kept, skipped
 
 
 def _parse_cpu_to_cores(s: str) -> float:
@@ -156,6 +190,8 @@ def normalize(
     services: List[V1Service],
     pod_metrics: List[Dict[str, Any]],
     hpas: List[Any],
+    include_namespaces: Iterable[str] | None = None,
+    exclude_namespaces: Iterable[str] | None = DEFAULT_EXCLUDED_NAMESPACES,
 ) -> Dict[str, Any]:
     """
     Produce ``services``, aggregate ``signals``, and ``topology`` dicts.
@@ -163,6 +199,16 @@ def normalize(
     ``signals`` uses cluster-level utilization (max across logical services) for
     MVP alignment with existing smell thresholds.
     """
+    include_ns = _namespace_set(include_namespaces)
+    exclude_ns = _namespace_set(exclude_namespaces)
+    pods, pods_excluded = _filter_by_namespace(pods, include_ns, exclude_ns)
+    deployments, _ = _filter_by_namespace(deployments, include_ns, exclude_ns)
+    services, _ = _filter_by_namespace(services, include_ns, exclude_ns)
+    hpas, _ = _filter_by_namespace(hpas, include_ns, exclude_ns)
+    pod_metrics = [
+        m for m in pod_metrics if _namespace_allowed(_metric_namespace(m), include_ns, exclude_ns)
+    ]
+
     metrics_by_key = _index_metrics(pod_metrics)
     dep_status = _deployment_app_status(deployments)
 
@@ -284,6 +330,8 @@ def normalize(
         "metrics_server_available": bool(pod_metrics),
         "services_with_metrics": services_with_metrics,
         "services_without_metrics": max(0, len(services_out) - services_with_metrics),
+        "excluded_namespaces": sorted(exclude_ns),
+        "pods_excluded_by_namespace": pods_excluded,
         "pods_without_app_label": pods_without_app_label,
         "topology_edges_inferred": edge_count,
         "topology_confidence": "medium" if edge_count else "low",

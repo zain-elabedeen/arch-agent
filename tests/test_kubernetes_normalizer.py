@@ -17,9 +17,9 @@ from kubernetes.client import (
 from agent.app.connectors.kubernetes.normalizer import normalize
 
 
-def _pod(name: str, app: str, restarts: int = 0) -> V1Pod:
+def _pod(name: str, app: str, restarts: int = 0, namespace: str = "default") -> V1Pod:
     return V1Pod(
-        metadata=V1ObjectMeta(name=name, namespace="default", labels={"app": app}),
+        metadata=V1ObjectMeta(name=name, namespace=namespace, labels={"app": app}),
         spec=V1PodSpec(
             containers=[
                 V1Container(
@@ -45,9 +45,9 @@ def _pod(name: str, app: str, restarts: int = 0) -> V1Pod:
     )
 
 
-def _deployment(app: str, replicas: int, available: int) -> V1Deployment:
+def _deployment(app: str, replicas: int, available: int, namespace: str = "default") -> V1Deployment:
     return V1Deployment(
-        metadata=V1ObjectMeta(name=app, namespace="default"),
+        metadata=V1ObjectMeta(name=app, namespace=namespace),
         spec=V1DeploymentSpec(
             replicas=replicas,
             selector={"matchLabels": {"app": app}},
@@ -100,3 +100,44 @@ def test_normalize_emits_kubernetes_native_signals_and_data_quality():
     assert out["services"][0]["cpu_usage_cores"] == 0.95
     assert out["data_quality"]["metrics_server_available"] is True
     assert out["data_quality"]["services_with_metrics"] == 1
+
+
+def test_normalize_excludes_kubernetes_system_namespaces_by_default():
+    out = normalize(
+        pods=[
+            _pod("kube-dns-abc-123", "kube-dns", restarts=20, namespace="kube-system"),
+            _pod("api-abc-123", "api", restarts=0, namespace="default"),
+        ],
+        deployments=[
+            _deployment("kube-dns", replicas=1, available=1, namespace="kube-system"),
+            _deployment("api", replicas=2, available=2, namespace="default"),
+        ],
+        services=[],
+        pod_metrics=[],
+        hpas=[],
+    )
+
+    assert [svc["name"] for svc in out["services"]] == ["api"]
+    assert "pod_restart_total" not in out["signals"]
+    assert out["data_quality"]["pods_excluded_by_namespace"] == 1
+    assert "kube-system" in out["data_quality"]["excluded_namespaces"]
+
+
+def test_normalize_include_namespaces_limits_collection_scope():
+    out = normalize(
+        pods=[
+            _pod("api-abc-123", "api", namespace="default"),
+            _pod("worker-abc-123", "worker", namespace="demo"),
+        ],
+        deployments=[
+            _deployment("api", replicas=1, available=1, namespace="default"),
+            _deployment("worker", replicas=1, available=1, namespace="demo"),
+        ],
+        services=[],
+        pod_metrics=[],
+        hpas=[],
+        include_namespaces={"demo"},
+        exclude_namespaces=set(),
+    )
+
+    assert [svc["name"] for svc in out["services"]] == ["worker"]
