@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: archagent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: archagent
+      POSTGRES_USER: archagent
+      POSTGRES_PASSWORD: archagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archagent -d archagent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: archagent-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ARCHAGENT_POSTGRES_DSN: postgresql+psycopg://archagent:archagent@postgres:5432/archagent
+      ARCHAGENT_K8S_AUTO_MIGRATE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "agent.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: archagent-k8s-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ARCHAGENT_POSTGRES_DSN: postgresql+psycopg://archagent:archagent@postgres:5432/archagent
+      ARCHAGENT_K8S_AUTO_MIGRATE: "true"
+      ARCHAGENT_K8S_POLL_INTERVAL_SEC: "45"
+      KUBECONFIG: /kube/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "-m", "agent.app.connectors.kubernetes.worker"]
+    volumes:
+      - ${HOME}/.kube/config:/kube/config:ro
+      - ${HOME}/.minikube:/Users/zain/.minikube:ro
+
+volumes:
+  postgres_data:
