@@ -1,6 +1,6 @@
 # ArchAgent
 
-ArchAgent is an infrastructure architecture intelligence system. It turns structured runtime data and service topology into architecture smells, ranked recommendations, risk critiques, execution plans, and an explanation report.
+ArchAgent is an cloud infrastructure intelligence system. It turns runtime data and service topology into architecture smells, ranked recommendations, risk critiques, execution plans
 
 ## What It Is
 
