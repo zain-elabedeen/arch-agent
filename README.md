@@ -42,10 +42,7 @@ Implemented:
 - smell-to-pattern retrieval
 - pattern-based critic rules
 - prioritized planner
-- deterministic explanation report with optional LLM polish
-
-Not implemented yet:
-
+- explanation report (LLM)
 - Prometheus connector
 - log ingestion
 - incident timelines
