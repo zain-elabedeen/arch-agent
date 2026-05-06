@@ -285,6 +285,18 @@ def normalize(
 
     app_names: Set[str] = set(by_app.keys())
     topology = build_topology(pods, services, app_names)
+    topology["service_details"] = {
+        str(s["name"]): {
+            "namespace": s.get("namespace"),
+            "replicas": int(s.get("replicas") or 0),
+            "available_replicas": s.get("available_replicas"),
+            "unavailable_replicas": s.get("unavailable_replicas"),
+            "restarts": int(s.get("restarts") or 0),
+            "cpu": s.get("cpu"),
+            "memory": s.get("memory"),
+        }
+        for s in services_out
+    }
 
     queue_backlog: float | None = None
     hpa_current_replicas = 0

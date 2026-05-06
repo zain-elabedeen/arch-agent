@@ -8,36 +8,166 @@ model invents or drops facts, output is rejected in favor of the template report
 
 from __future__ import annotations
 
-from typing import List
+from typing import Any, Dict, List
 
 from agent.app.config import Settings
 from agent.app.logging_utils import get_logger
+from agent.app.models.pattern import ArchitecturePattern
 from agent.app.state import Critique, GraphState, Recommendation
 
 logger = get_logger("agent.nodes.reasoning")
 
-def _smell_lines(smells: List[dict]) -> List[str]:
-    """Format smell dicts as markdown bullet lines (or a single empty-state line)."""
-    if not smells:
-        return ["- No architecture smells were detected from the provided runtime signals."]
-    lines: List[str] = []
-    for s in smells:
+_SMELL_EXPLAINERS: Dict[str, str] = {
+    "read_scaling_bottleneck": "Read paths appear to be contributing to elevated request or database latency.",
+    "cpu_saturation": "One or more services are close to CPU capacity, so extra traffic may turn into latency or failures.",
+    "memory_pressure": "One or more services are close to memory capacity, which can cause restarts, throttling, or degraded latency.",
+    "queue_backlog": "Work is accumulating faster than consumers can process it, which usually points to throughput mismatch.",
+    "restart_instability": "Pods are restarting often enough to suggest instability, crash loops, resource pressure, or dependency failures.",
+    "replica_unavailability": "Desired capacity is not fully available, so the system may have less redundancy than expected.",
+    "autoscaling_pressure": "Autoscaling wants more capacity than is currently available, which suggests demand is exceeding current pods.",
+    "single_instance_risk": "At least one service has only one instance, so a single pod failure can remove that service's capacity.",
+    "coupling_risk": "A service has many outbound dependencies, increasing coordination, failure propagation, and change risk.",
+    "high_error_rate": "The observed error rate is high enough to require resilience and failure-containment patterns.",
+}
+
+
+def _format_evidence(evidence: Dict[str, Any]) -> str:
+    if not evidence:
+        return "No detailed evidence fields were attached."
+    parts = []
+    for key in sorted(evidence.keys()):
+        value = evidence[key]
+        if isinstance(value, float):
+            parts.append(f"`{key}`={value:g}")
+        else:
+            parts.append(f"`{key}`={value}")
+    return ", ".join(parts)
+
+
+def _evidence_services(evidence: Dict[str, Any]) -> List[str]:
+    raw = evidence.get("services")
+    if not raw:
+        service = evidence.get("service")
+        return [str(service)] if service else []
+    if isinstance(raw, str):
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    if isinstance(raw, list):
+        return [str(item) for item in raw if str(item).strip()]
+    return []
+
+
+def _affected_services_from_smells(smells: List[dict]) -> List[str]:
+    services: set[str] = set()
+    for smell in smells:
+        services.update(_evidence_services(smell.get("evidence", {}) or {}))
+    return sorted(services)
+
+
+def _pattern_lookup(patterns: List[ArchitecturePattern]) -> Dict[str, ArchitecturePattern]:
+    return {p.id: p for p in patterns}
+
+
+def _service_context_lines(state: GraphState, affected_services: List[str]) -> List[str]:
+    topology = state.get("topology", {}) or {}
+    service_details = topology.get("service_details", {}) if isinstance(topology, dict) else {}
+    services = topology.get("services", []) if isinstance(topology, dict) else []
+    edges = topology.get("edges", []) if isinstance(topology, dict) else []
+
+    lines = [
+        f"- The snapshot contains {len(services)} service(s) and {len(edges)} inferred dependency edge(s).",
+    ]
+    if affected_services:
+        lines.append(f"- The current findings affect: `{', '.join(affected_services)}`.")
+    else:
+        lines.append("- No specific affected service was attached to the current findings.")
+
+    for service in affected_services:
+        detail = service_details.get(service, {}) if isinstance(service_details, dict) else {}
+        if not isinstance(detail, dict):
+            continue
+        ns = detail.get("namespace") or "unknown namespace"
+        replicas = detail.get("replicas", "unknown")
+        available = detail.get("available_replicas", "unknown")
+        restarts = detail.get("restarts", "unknown")
         lines.append(
-            f"- `{s.get('type', 'unknown')}` (severity: {s.get('severity', 'n/a')}, "
-            f"confidence: {s.get('confidence', 'n/a')})"
+            f"- `{service}` is running in `{ns}` with replicas={replicas}, available_replicas={available}, restarts={restarts}."
         )
     return lines
 
 
-def _recommendation_lines(recommendations: List[Recommendation]) -> List[str]:
-    """Format recommendations as markdown bullets for the deterministic report."""
-    if not recommendations:
-        return ["- No architecture changes are currently recommended."]
+def _story_lines(smells: List[dict], recommendations: List[Recommendation], affected_services: List[str]) -> List[str]:
+    if not smells:
+        return [
+            "- The latest snapshot does not show an architecture stress signal that crosses the current MVP thresholds.",
+            "- That does not prove the system is perfect; it means this snapshot does not currently justify an architecture change from the deterministic rules.",
+        ]
+
+    smell_names = ", ".join(f"`{s.get('type', 'unknown')}`" for s in smells)
+    pattern_names = ", ".join(f"`{r.pattern}`" for r in recommendations) if recommendations else "no pattern"
+    target = f" for `{', '.join(affected_services)}`" if affected_services else ""
+    return [
+        f"- The system is telling a simple architecture story: {smell_names} was detected{target}.",
+        f"- The recommendation engine translated that smell into {pattern_names} because those patterns address the structural risk represented by the signal.",
+        "- Read this as a design review prompt: confirm the workload role, decide whether the service is meant to be redundant, then apply the smallest architecture change that removes the risk.",
+    ]
+
+
+def _smell_lines(smells: List[dict]) -> List[str]:
+    """Format smell dicts as teaching-oriented markdown bullets."""
+    if not smells:
+        return [
+            "- No architecture smells were detected from the provided runtime signals.",
+            "- This means the current snapshot did not cross the deterministic thresholds used by the MVP rules.",
+        ]
     lines: List[str] = []
+    for s in smells:
+        smell_type = s.get("type", "unknown")
+        evidence = s.get("evidence", {}) or {}
+        services = _evidence_services(evidence)
+        explainer = _SMELL_EXPLAINERS.get(smell_type, "This smell indicates an architecture stress signal worth reviewing.")
+        service_text = f" Affected service(s): `{', '.join(services)}`." if services else ""
+        lines.extend(
+            [
+                f"- `{smell_type}`",
+                f"  - Severity/confidence: {s.get('severity', 'n/a')} / {s.get('confidence', 'n/a')}",
+                f"  - What it means: {explainer}",
+                f"  - Evidence: {_format_evidence(evidence)}.{service_text}",
+            ]
+        )
+    return lines
+
+
+def _recommendation_lines(
+    recommendations: List[Recommendation],
+    patterns_by_id: Dict[str, ArchitecturePattern],
+    affected_services: List[str],
+) -> List[str]:
+    """Format recommendations as teaching-oriented markdown bullets."""
+    if not recommendations:
+        return [
+            "- No architecture changes are currently recommended.",
+            "- The system should continue collecting snapshots; future recommendations will appear when smells are detected.",
+        ]
+    lines: List[str] = []
+    service_text = f"`{', '.join(affected_services)}`" if affected_services else "the affected service(s)"
     for r in recommendations:
-        reason = f" Reason: {r.reason}." if r.reason else ""
-        lines.append(
-            f"- `{r.pattern}`: {r.solution} (impact: {r.impact}, effort: {r.effort}).{reason}"
+        pattern = patterns_by_id.get(r.pattern)
+        summary = pattern.summary if pattern else "This pattern is mapped from the detected smell."
+        tradeoffs = "; ".join(pattern.tradeoffs[:3]) if pattern and pattern.tradeoffs else "No catalog tradeoffs were attached."
+        solutions = "; ".join(pattern.solutions[:3]) if pattern and pattern.solutions else r.solution
+        lines.extend(
+            [
+                f"#### `{r.pattern}`",
+                f"- Affected service scope: {service_text}.",
+                f"- Why it matched: {r.reason or 'Mapped from detected smell.'}",
+                f"- Architecture explanation: {summary}",
+                f"- How to think about the change: this pattern changes the service shape, not just a metric. The goal is to reduce the structural weakness that produced the smell.",
+                f"- Concrete implementation moves: {solutions}.",
+                f"- First concrete move from the planner: {r.solution}.",
+                f"- Expected benefit: {r.impact} impact if the smell is valid for this workload.",
+                f"- Delivery effort: {r.effort}.",
+                f"- Tradeoffs to understand before changing production: {tradeoffs}.",
+            ]
         )
     return lines
 
@@ -52,6 +182,47 @@ def _critique_lines(critiques: List[Critique]) -> List[str]:
     return lines
 
 
+def _plan_lines(recommendations: List[Recommendation], plan_steps: List[Any]) -> List[str]:
+    """Explain plan ordering without changing planner decisions."""
+    if not plan_steps:
+        return ["- No execution plan was produced because there are no active recommendations."]
+    lines = [
+        "- The planner orders recommendations using impact, effort, and recommendation priority.",
+        "- Treat these as architecture investigation steps first; production changes still need owner review, testing, and rollout planning.",
+    ]
+    for idx, step in enumerate(plan_steps, start=1):
+        title = getattr(step, "title", None) or step.get("title", f"Step {idx}")
+        description = getattr(step, "description", None) or step.get("description", "")
+        lines.append(f"- {title}: {description}")
+    rec_ids = [r.pattern for r in recommendations]
+    if "horizontal_scaling" in rec_ids and "load_balancing" in rec_ids:
+        lines.extend(
+            [
+                "- Architecture sequencing note: horizontal scaling and load balancing are related patterns. Scaling creates additional instances; load balancing makes those instances useful by distributing traffic across them.",
+                "- Learning note: load balancing only helps after more than one healthy instance exists; in practice, add replicas and verify service routing together.",
+            ]
+        )
+    return lines
+
+
+def _review_questions(smells: List[dict], recommendations: List[Recommendation], affected_services: List[str]) -> List[str]:
+    if not recommendations:
+        return ["- No review questions are needed until a smell produces a recommendation."]
+    service_text = f" for `{', '.join(affected_services)}`" if affected_services else ""
+    questions = [
+        f"- Is the affected workload{service_text} intended to be highly available, or is one replica acceptable for this environment?",
+        "- Does the service keep local state that would make multiple replicas unsafe or ineffective?",
+        "- Are readiness/liveness probes configured so traffic only reaches healthy pods?",
+        "- If replicas are added, is there a Service, ingress, or gateway path that will actually distribute traffic?",
+    ]
+    rec_ids = {r.pattern for r in recommendations}
+    if "horizontal_scaling" in rec_ids:
+        questions.append("- What replica count should be the minimum safe baseline, and should HPA manage it later?")
+    if "load_balancing" in rec_ids:
+        questions.append("- Does the current traffic path preserve sessions or require sticky routing?")
+    return questions
+
+
 def build_explanation_report(state: GraphState) -> str:
     """
     Explanation-only layer.
@@ -61,18 +232,38 @@ def build_explanation_report(state: GraphState) -> str:
     smells = state.get("smells", [])
     recommendations = state.get("recommendations", [])
     critiques = state.get("critiques", [])
+    plan_steps = state.get("final_plan", [])
+    patterns_by_id = _pattern_lookup(state.get("patterns", []) or [])
+    affected_services = _affected_services_from_smells(smells)
 
     report_parts = [
         "## Runtime Architecture Report",
         "",
+        "### What This Report Is Doing",
+        "This report explains how the deterministic architecture agents interpreted the latest infrastructure snapshot. It connects observed runtime/topology signals to architecture patterns so the user can understand both the recommendation and the design concept behind it.",
+        "",
+        "The output is guidance for engineering review, not an automatic production change. A human owner should confirm service intent, workload criticality, and rollout constraints before acting.",
+        "",
+        "### System Story",
+        *_story_lines(smells, recommendations, affected_services),
+        "",
+        "### Affected Services",
+        *_service_context_lines(state, affected_services),
+        "",
         "### Detected Smells",
         *_smell_lines(smells),
         "",
-        "### Recommended Architecture Moves",
-        *_recommendation_lines(recommendations),
+        "### Recommended Architecture Changes",
+        *_recommendation_lines(recommendations, patterns_by_id, affected_services),
         "",
         "### Constraints and Warnings",
         *_critique_lines(critiques),
+        "",
+        "### Execution Plan Rationale",
+        *_plan_lines(recommendations, plan_steps),
+        "",
+        "### Questions To Validate Before Acting",
+        *_review_questions(smells, recommendations, affected_services),
         "",
         "### Summary",
         (
@@ -84,17 +275,22 @@ def build_explanation_report(state: GraphState) -> str:
 
 
 def _build_llm_prompt(state: GraphState) -> str:
-    """User message instructing the model to rewrite without adding or removing facts."""
+    """User message instructing the model to produce a teaching-oriented rewrite."""
     base_report = build_explanation_report(state)
     return (
-        "You are an assistant that improves clarity of engineering reports.\n"
+        "You are an infrastructure architecture educator rewriting an existing deterministic report.\n"
         "IMPORTANT RULES:\n"
-        "- Do NOT add new information.\n"
-        "- Do NOT remove information.\n"
-        "- Do NOT reinterpret data.\n"
-        "- Keep all original sections and factual claims.\n"
-        "- Only improve clarity, flow, and readability.\n\n"
-        "Rewrite the following report in clearer, more structured markdown:\n\n"
+        "- Do NOT add new smells, recommendations, critiques, metrics, services, or evidence.\n"
+        "- Do NOT remove any factual claim from the report.\n"
+        "- Do NOT claim an action was executed; recommendations are review guidance only.\n"
+        "- You may explain architecture concepts that are already named in the report, such as replicas, load balancing, bulkheads, or horizontal scaling.\n"
+        "- Keep the same top-level sections unless a section heading can be made clearer.\n"
+        "- Write for an engineer who is learning from the system interaction.\n"
+        "- Explain which service or services are affected when the report names them.\n"
+        "- Explain the recommended patterns as a systems and cloud architecture expert would: what problem they solve, how they change the architecture, why they help, and what tradeoffs they introduce.\n"
+        "- Make the cause -> pattern -> tradeoff -> next step reasoning easy to follow.\n"
+        "- Use clear markdown with short paragraphs and bullets, but do not make the explanation terse.\n\n"
+        "Rewrite the following report as a clearer, more educational architecture explanation:\n\n"
         f"{base_report}"
     )
 
@@ -167,7 +363,7 @@ def _llm_report(state: GraphState, settings: Settings) -> str | None:
             messages=[
                 {
                     "role": "system",
-                    "content": "You summarize existing architecture outputs only.",
+                    "content": "You explain existing architecture outputs without changing the underlying facts.",
                 },
                 {"role": "user", "content": _build_llm_prompt(state)},
             ],

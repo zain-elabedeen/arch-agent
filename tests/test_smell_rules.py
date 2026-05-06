@@ -57,3 +57,19 @@ def test_detect_smells_includes_kubernetes_native_smells():
     assert "replica_unavailability" in smell_types
     assert "single_instance_risk" in smell_types
     assert "autoscaling_pressure" in smell_types
+
+
+def test_detect_smells_includes_affected_services_from_topology_details():
+    smells = detect_smells(
+        {"single_instance_service_count": 1},
+        {
+            "edges": [],
+            "service_details": {
+                "demo-api": {"replicas": 1, "restarts": 0},
+                "worker": {"replicas": 2, "restarts": 0},
+            },
+        },
+    )
+
+    single_instance = next(s for s in smells if s["type"] == "single_instance_risk")
+    assert single_instance["evidence"]["services"] == "demo-api"

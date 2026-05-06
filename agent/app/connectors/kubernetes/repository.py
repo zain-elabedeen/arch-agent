@@ -294,9 +294,23 @@ def load_run_as_raw_state(conn: Connection, run_id: Optional[uuid.UUID]) -> Tupl
         svc_set.add(e["to"])
     topo_services = sorted(svc_set)
 
+    service_details = {
+        r["service_name"]: {
+            "namespace": r.get("namespace"),
+            "replicas": int(r["replicas"] or 0),
+            "available_replicas": r.get("available_replicas"),
+            "unavailable_replicas": r.get("unavailable_replicas"),
+            "restarts": int(r["restarts"] or 0),
+            "cpu": float(r["cpu"] or 0.0),
+            "memory": float(r["memory"] or 0.0),
+        }
+        for r in svc_rows
+    }
+
     raw_topology = ServiceTopology(
         services=topo_services,
         edges=[TopologyEdge.model_validate(e) for e in edges],
+        service_details=service_details,
     ).model_dump(by_alias=True)
 
     return raw_signals, raw_topology, rid

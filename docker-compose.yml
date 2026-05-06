@@ -56,5 +56,5 @@ services:
 #       - ${HOME}/.kube/config:/kube/config:ro
 #       - ${HOME}/.minikube:/Users/zain/.minikube:ro
 
-# volumes:
-#   postgres_data:
+volumes:
+  postgres_data:

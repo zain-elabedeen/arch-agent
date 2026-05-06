@@ -98,6 +98,7 @@ class ServiceTopology(BaseModel):
 
     services: List[str] = Field(default_factory=list)
     edges: List[TopologyEdge] = Field(default_factory=list)
+    service_details: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     critical_stores: List[str] = Field(default_factory=list)
     critical_queues: List[str] = Field(default_factory=list)
 

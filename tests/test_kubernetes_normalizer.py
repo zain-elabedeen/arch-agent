@@ -98,6 +98,7 @@ def test_normalize_emits_kubernetes_native_signals_and_data_quality():
     assert out["signals"]["hpa_scaling_pressure"] == 2.0
     assert out["services"][0]["available_replicas"] == 2
     assert out["services"][0]["cpu_usage_cores"] == 0.95
+    assert out["topology"]["service_details"]["api"]["replicas"] == 3
     assert out["data_quality"]["metrics_server_available"] is True
     assert out["data_quality"]["services_with_metrics"] == 1
 

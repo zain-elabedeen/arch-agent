@@ -8,7 +8,7 @@ topology heuristics live here so behavior stays testable and explainable.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
 def _value(metrics: Dict[str, float], *keys: str) -> float | None:
@@ -34,6 +34,23 @@ def _confidence_for_coupling(deps: int) -> float:
     return 0.8
 
 
+def _service_details(topology: dict) -> Dict[str, Dict[str, Any]]:
+    details = topology.get("service_details", {}) if isinstance(topology, dict) else {}
+    return details if isinstance(details, dict) else {}
+
+
+def _join_services(names: List[str]) -> str:
+    return ", ".join(sorted(names))
+
+
+def _services_matching(topology: dict, predicate) -> List[str]:
+    matches: List[str] = []
+    for name, detail in _service_details(topology).items():
+        if isinstance(detail, dict) and predicate(detail):
+            matches.append(str(name))
+    return sorted(matches)
+
+
 def detect_smells(metrics: dict, topology: dict) -> list[dict]:
     """
     Deterministic smell detection from canonical signals + topology.
@@ -52,6 +69,11 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
     unavailable = _value(metrics, "unavailable_replicas")
     single_instance_services = _value(metrics, "single_instance_service_count")
     hpa_pressure = _value(metrics, "hpa_scaling_pressure")
+    cpu_services = _services_matching(topology, lambda d: float(d.get("cpu") or 0.0) > 0.9)
+    memory_services = _services_matching(topology, lambda d: float(d.get("memory") or 0.0) > 0.9)
+    restart_services = _services_matching(topology, lambda d: int(d.get("restarts") or 0) >= 3)
+    unavailable_services = _services_matching(topology, lambda d: int(d.get("unavailable_replicas") or 0) > 0)
+    single_instance_service_names = _services_matching(topology, lambda d: int(d.get("replicas") or 0) <= 1)
 
     if db_latency is not None and req_p95 is not None and db_latency > 250 and req_p95 > 500:
         smells.append(
@@ -69,7 +91,7 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
                 "type": "cpu_saturation",
                 "severity": _severity_for_threshold(cpu, warn=0.9, high=0.97),
                 "confidence": 0.88,
-                "evidence": {"cpu": cpu},
+                "evidence": {"cpu": cpu, **({"services": _join_services(cpu_services)} if cpu_services else {})},
             }
         )
 
@@ -79,7 +101,7 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
                 "type": "memory_pressure",
                 "severity": _severity_for_threshold(memory, warn=0.9, high=0.97),
                 "confidence": 0.84,
-                "evidence": {"memory": memory},
+                "evidence": {"memory": memory, **({"services": _join_services(memory_services)} if memory_services else {})},
             }
         )
 
@@ -99,7 +121,10 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
                 "type": "restart_instability",
                 "severity": "high" if restarts >= 10 else "medium",
                 "confidence": 0.78,
-                "evidence": {"pod_restart_total": restarts},
+                "evidence": {
+                    "pod_restart_total": restarts,
+                    **({"services": _join_services(restart_services)} if restart_services else {}),
+                },
             }
         )
 
@@ -109,7 +134,10 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
                 "type": "replica_unavailability",
                 "severity": "high" if unavailable >= 3 else "medium",
                 "confidence": 0.82,
-                "evidence": {"unavailable_replicas": unavailable},
+                "evidence": {
+                    "unavailable_replicas": unavailable,
+                    **({"services": _join_services(unavailable_services)} if unavailable_services else {}),
+                },
             }
         )
 
@@ -145,13 +173,18 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
                 }
             )
 
+    if single_instance_services is None and single_instance_service_names:
+        single_instance_services = float(len(single_instance_service_names))
     if single_instance_services is not None and single_instance_services > 0:
         smells.append(
             {
                 "type": "single_instance_risk",
                 "severity": "medium",
                 "confidence": 0.74,
-                "evidence": {"single_instance_service_count": single_instance_services},
+                "evidence": {
+                    "single_instance_service_count": single_instance_services,
+                    **({"services": _join_services(single_instance_service_names)} if single_instance_service_names else {}),
+                },
             }
         )
 
