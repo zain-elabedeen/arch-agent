@@ -30,8 +30,6 @@ ArchAgent sits above infrastructure signals  (Prometheus, Datadog, Grafana, or K
 
 The current implementation focuses on Kubernetes data foundation plus the MVP architecture reasoning pipeline.
 
-Implemented:
-
 - FastAPI API layer
 - LangGraph multi-agent pipeline
 - Kubernetes pull-based connector
@@ -45,6 +43,8 @@ Implemented:
 - explanation report (LLM)
 - Prometheus connector
 - log ingestion
+
+Next:
 - incident timelines
 - security intelligence
 - action/execution layer
