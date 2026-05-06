@@ -17,9 +17,8 @@ It consumes:
 
 It produces:
 
-- architecture smells
-- candidate architecture patterns
-- ranked recommendations
+- infrastructure smells
+- architecture recommendations
 - constraint and risk warnings
 - a prioritized plan
 - a human-readable report
@@ -28,26 +27,26 @@ ArchAgent sits above infrastructure signals  (Prometheus, Datadog, Grafana, or K
 
 ## Current Scope
 
-The current implementation focuses on Kubernetes data foundation plus the MVP architecture reasoning pipeline.
+The current implementation focuses on data foundation and the architecture reasoning pipeline (MVP).
 
 - FastAPI API layer
 - LangGraph multi-agent pipeline
-- Kubernetes pull-based connector
-- snapshot normalization
-- Postgres persistence with JSONB snapshot payloads
-- snapshot-backed recommendation API
-- deterministic smell detection
+- Kubernetes connector
+- Prometheus connector
+- log ingestion
+- metrics snapshot normalization
+- snapshot payload persistence (Postgresql)
+- recommendation API
+- smell detection engine
 - smell-to-pattern retrieval
 - pattern-based critic rules
 - prioritized planner
 - explanation report (LLM)
-- Prometheus connector
-- log ingestion
 
 Next:
-- incident timelines
+
+- incidents data
 - security intelligence
-- action/execution layer
 - long-term trend analysis
 
 ## Architecture
@@ -68,7 +67,201 @@ LangGraph Pipeline
 Smells + Recommendations + Critiques + Plan + Report
 ```
 
-Important design rule: the API does not call Kubernetes directly. The worker collects infrastructure data and writes snapshots. The API reads the latest snapshot, builds `GraphState`, and runs the reasoning graph.
+The worker collects infrastructure data and writes snapshots.
+
+The API reads the latest snapshot, builds `GraphState`, and runs the reasoning graph.
+
+## API Layout
+
+Endpoints:
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/healthz` | Liveness check |
+| `POST` | `/v1/recommendations` | Run the recommendation pipeline |
+
+### Recommendation Modes
+
+Snapshot mode:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/v1/recommendations | jq .
+```
+
+Snapshot mode uses the latest stored Kubernetes snapshot. To analyze a specific run:
+
+```bash
+curl -s -X POST "http://127.0.0.1:8000/v1/recommendations?run_id=<uuid>" | jq .
+```
+
+Inline mode:
+
+```bash
+curl -s http://127.0.0.1:8000/v1/recommendations \
+  -H 'content-type: application/json' \
+  -d '{
+    "signals": {
+      "request_latency_p95_ms": 850,
+      "db_latency_p95_ms": 420,
+      "error_rate": 0.03,
+      "cpu_utilization": 0.92,
+      "queue_backlog": 12000
+    },
+    "topology": {
+      "services": ["api", "worker", "db"],
+      "edges": [
+        {"from": "api", "to": "db", "type": "db"},
+        {"from": "api", "to": "worker", "type": "queue"}
+      ],
+      "critical_stores": ["db"],
+      "critical_queues": ["jobs"]
+    }
+  }' | jq .
+```
+
+Response shape:
+
+- `snapshot_run_id`
+- `smells`
+- `recommendations`
+- `critiques`
+- `plan`
+- `explanation_report`
+
+## Quickstart
+
+Create a virtualenv and install dependencies:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Run the API:
+
+```bash
+uvicorn agent.app.main:app --reload
+```
+
+Validate:
+
+```bash
+curl -s http://127.0.0.1:8000/healthz
+```
+
+## Docker Compose
+
+Create an env file:
+
+```bash
+cp .env.example .env
+```
+
+Start API, worker, and Postgres:
+
+```bash
+docker compose up --build
+```
+
+Services:
+
+- API: `http://127.0.0.1:8000`
+- Postgres: `localhost:5432`
+- Worker: `python -m agent.app.connectors.kubernetes.worker`
+
+The worker reads kube credentials from `${HOME}/.kube/config`, mounted into the container at `/kube/config`.
+
+If kubeconfig references local cert/key files, those paths must also be mounted. The compose file currently mounts `${HOME}/.minikube` for local Minikube-style credentials.
+
+For in-cluster deployment, remove the kubeconfig mount and rely on in-cluster service account auth.
+
+## Configuration
+
+Environment variables use the `ARCHAGENT_` prefix. See `agent/app/config.py` and `.env.example`.
+
+Common variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `ARCHAGENT_ENVIRONMENT` | Runtime environment: `dev`, `test`, or `prod` |
+| `ARCHAGENT_PATTERN_STORE` | Pattern store mode. Current implementation: `filesystem` |
+| `ARCHAGENT_PATTERNS_PATH` | Path to JSON architecture patterns |
+| `ARCHAGENT_POSTGRES_DSN` | Postgres connection string |
+| `ARCHAGENT_K8S_AUTO_MIGRATE` | Auto-create/update connector tables |
+| `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
+| `ARCHAGENT_K8S_INCLUDE_NAMESPACES` | Optional comma-separated allow-list of namespaces |
+| `ARCHAGENT_K8S_EXCLUDE_NAMESPACES` | Comma-separated namespace exclude list |
+| `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM pass |
+| `ARCHAGENT_LLM_PROVIDER` | `openai`, `ollama`, `agent_platform_gemini`, or `agent_platform_claude` |
+| `ARCHAGENT_LLM_MODEL` | Model used for explanation polish |
+| `ARCHAGENT_OPENAI_API_KEY` | OpenAI API key when using OpenAI |
+| `ARCHAGENT_OLLAMA_BASE_URL` | Ollama OpenAI-compatible base URL |
+| `ARCHAGENT_GCP_PROJECT_ID` | GCP project ID for Agent Platform providers |
+| `ARCHAGENT_GCP_LOCATION` | Agent Platform region, multi-region, or `global` endpoint |
+| `ARCHAGENT_GCP_GENAI_API_VERSION` | Google Gen AI SDK API version. Default: `v1` |
+
+### LLM Providers
+
+The LLM is used by the reasoning and critic agents
+
+Local Ollama:
+
+```bash
+ARCHAGENT_LLM_PROVIDER=ollama
+ARCHAGENT_LLM_MODEL=llama3.1
+ARCHAGENT_OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
+Gemini on Google Cloud Agent Platform:
+
+```bash
+ARCHAGENT_LLM_PROVIDER=agent_platform_gemini
+ARCHAGENT_LLM_MODEL=gemini-2.5-flash
+ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
+ARCHAGENT_GCP_LOCATION=global
+ARCHAGENT_GCP_GENAI_API_VERSION=v1
+```
+
+Claude on Google Cloud Agent Platform:
+
+```bash
+ARCHAGENT_LLM_PROVIDER=agent_platform_claude
+ARCHAGENT_LLM_MODEL=claude-sonnet-4-5@20250929
+ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
+ARCHAGENT_GCP_LOCATION=global
+```
+
+Agent Platform providers use Google Application Default Credentials. For local development, run:
+
+```bash
+gcloud auth application-default login
+```
+
+For service accounts, set `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json` in the process environment. The GCP project must have the Agent Platform API enabled, `roles/aiplatform.user` or equivalent permissions, and access to the selected Gemini or Claude model in the configured location.
+
+## Tests
+
+Use the repo virtualenv so LangGraph and the app dependencies are available:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
+```
+
+## Repository Structure
+
+```text
+agent/app/
+  api/                    FastAPI route handlers
+  connectors/kubernetes/  Kubernetes collection, normalization, topology, persistence
+  models/                 Domain models
+  nodes/                  LangGraph node implementations
+  patterns/               Architecture pattern catalog
+  services/               Smell rules, pattern loading, snapshot loading
+  graph.py                LangGraph orchestration
+  main.py                 FastAPI app construction
+  state.py                API and graph state models
+```
 
 ## Reasoning Pipeline
 
@@ -114,7 +307,7 @@ The current snapshot model includes:
 - topology edges
 - data quality hints
 
-By default, ingestion excludes Kubernetes/platform namespaces so local Minikube
+By default, ingestion excludes Kubernetes/platform namespaces so
 control-plane components do not drive application architecture recommendations:
 
 - `kube-system`
@@ -215,216 +408,3 @@ Each pattern can define:
 - `confidence`
 
 Smell-to-pattern routing is explicit in `agent/app/services/pattern_loader.py` through `SMELL_TO_PATTERN_MAP`.
-
-## API Layout
-
-FastAPI app construction lives in `agent/app/main.py`.
-
-Route handlers are split into API modules:
-
-- `agent/app/api/health.py`
-- `agent/app/api/recommendations.py`
-
-Endpoints:
-
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/healthz` | Liveness check |
-| `POST` | `/v1/recommendations` | Run the recommendation pipeline |
-
-### Recommendation Modes
-
-Inline mode:
-
-```bash
-curl -s http://127.0.0.1:8000/v1/recommendations \
-  -H 'content-type: application/json' \
-  -d '{
-    "signals": {
-      "request_latency_p95_ms": 850,
-      "db_latency_p95_ms": 420,
-      "error_rate": 0.03,
-      "cpu_utilization": 0.92,
-      "queue_backlog": 12000
-    },
-    "topology": {
-      "services": ["api", "worker", "db"],
-      "edges": [
-        {"from": "api", "to": "db", "type": "db"},
-        {"from": "api", "to": "worker", "type": "queue"}
-      ],
-      "critical_stores": ["db"],
-      "critical_queues": ["jobs"]
-    }
-  }' | jq .
-```
-
-Snapshot mode:
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/v1/recommendations | jq .
-```
-
-Snapshot mode uses the latest stored Kubernetes snapshot. To analyze a specific run:
-
-```bash
-curl -s -X POST "http://127.0.0.1:8000/v1/recommendations?run_id=<uuid>" | jq .
-```
-
-Response shape:
-
-- `snapshot_run_id`
-- `smells`
-- `recommendations`
-- `critiques`
-- `plan`
-- `explanation_report`
-
-## Quickstart
-
-Create a virtualenv and install dependencies:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Run the API:
-
-```bash
-uvicorn agent.app.main:app --reload
-```
-
-Validate:
-
-```bash
-curl -s http://127.0.0.1:8000/healthz
-```
-
-## Docker Compose
-
-Create an env file:
-
-```bash
-cp .env.example .env
-```
-
-Start API, worker, and Postgres:
-
-```bash
-docker compose up --build
-```
-
-Services:
-
-- API: `http://127.0.0.1:8000`
-- Postgres: `localhost:5432`
-- Worker: `python -m agent.app.connectors.kubernetes.worker`
-
-The worker reads kube credentials from `${HOME}/.kube/config`, mounted into the container at `/kube/config`.
-
-If kubeconfig references local cert/key files, those paths must also be mounted. The compose file currently mounts `${HOME}/.minikube` for local Minikube-style credentials.
-
-For in-cluster deployment, remove the kubeconfig mount and rely on in-cluster service account auth.
-
-## Configuration
-
-Environment variables use the `ARCHAGENT_` prefix. See `agent/app/config.py` and `.env.example`.
-
-Common variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `ARCHAGENT_ENVIRONMENT` | Runtime environment: `dev`, `test`, or `prod` |
-| `ARCHAGENT_PATTERN_STORE` | Pattern store mode. Current implementation: `filesystem` |
-| `ARCHAGENT_PATTERNS_PATH` | Path to JSON architecture patterns |
-| `ARCHAGENT_POSTGRES_DSN` | Postgres connection string |
-| `ARCHAGENT_K8S_AUTO_MIGRATE` | Auto-create/update connector tables |
-| `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
-| `ARCHAGENT_K8S_INCLUDE_NAMESPACES` | Optional comma-separated allow-list of namespaces |
-| `ARCHAGENT_K8S_EXCLUDE_NAMESPACES` | Comma-separated namespace exclude list |
-| `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM pass |
-| `ARCHAGENT_LLM_PROVIDER` | `openai`, `ollama`, `agent_platform_gemini`, or `agent_platform_claude` |
-| `ARCHAGENT_LLM_MODEL` | Model used for explanation polish |
-| `ARCHAGENT_OPENAI_API_KEY` | OpenAI API key when using OpenAI |
-| `ARCHAGENT_OLLAMA_BASE_URL` | Ollama OpenAI-compatible base URL |
-| `ARCHAGENT_GCP_PROJECT_ID` | GCP project ID for Agent Platform providers |
-| `ARCHAGENT_GCP_LOCATION` | Agent Platform region, multi-region, or `global` endpoint |
-| `ARCHAGENT_GCP_GENAI_API_VERSION` | Google Gen AI SDK API version. Default: `v1` |
-
-### LLM Providers
-
-The LLM is only used by the reasoning node to rewrite the deterministic report into a clearer teaching-oriented explanation. Smell detection, pattern retrieval, criticism, and planning stay rule-based.
-
-Local Ollama:
-
-```bash
-ARCHAGENT_LLM_PROVIDER=ollama
-ARCHAGENT_LLM_MODEL=llama3.1
-ARCHAGENT_OLLAMA_BASE_URL=http://localhost:11434/v1
-```
-
-Gemini on Gemini Enterprise Agent Platform:
-
-```bash
-ARCHAGENT_LLM_PROVIDER=agent_platform_gemini
-ARCHAGENT_LLM_MODEL=gemini-2.5-flash
-ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
-ARCHAGENT_GCP_LOCATION=global
-ARCHAGENT_GCP_GENAI_API_VERSION=v1
-```
-
-Claude on Gemini Enterprise Agent Platform:
-
-```bash
-ARCHAGENT_LLM_PROVIDER=agent_platform_claude
-ARCHAGENT_LLM_MODEL=claude-sonnet-4-5@20250929
-ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
-ARCHAGENT_GCP_LOCATION=global
-```
-
-Agent Platform providers use Google Application Default Credentials. For local development, run:
-
-```bash
-gcloud auth application-default login
-```
-
-For service accounts, set `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json` in the process environment. The GCP project must have the Agent Platform API enabled, `roles/aiplatform.user` or equivalent permissions, and access to the selected Gemini or Claude model in the configured location.
-
-The Google Gen AI SDK also recognizes `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, and `GOOGLE_GENAI_USE_VERTEXAI=True` when they are exported in the process environment. ArchAgent still prefers `ARCHAGENT_GCP_PROJECT_ID` and `ARCHAGENT_GCP_LOCATION` so the app configuration remains explicit. Legacy provider aliases `vertex_gemini`, `gcp_gemini`, `vertex_claude`, and `gcp_claude` are accepted for backward compatibility.
-
-## Tests
-
-Use the repo virtualenv so LangGraph and the app dependencies are available:
-
-```bash
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
-```
-
-Current suite coverage includes:
-
-- graph pipeline execution
-- recommendation snapshot mode
-- smell rules
-- pattern loading and smell mapping
-- critic behavior
-- planner behavior
-- reasoning report generation
-- Kubernetes normalizer behavior
-- topology inference behavior
-
-## Repository Structure
-
-```text
-agent/app/
-  api/                    FastAPI route handlers
-  connectors/kubernetes/  Kubernetes collection, normalization, topology, persistence
-  models/                 Domain models
-  nodes/                  LangGraph node implementations
-  patterns/               Architecture pattern catalog
-  services/               Smell rules, pattern loading, snapshot loading
-  graph.py                LangGraph orchestration
-  main.py                 FastAPI app construction
-  state.py                API and graph state models
-```
