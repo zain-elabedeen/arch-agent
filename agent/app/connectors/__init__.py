@@ -1,1 +1,1 @@
-"""Data connectors (Kubernetes, etc.) that feed the canonical snapshot store."""
+"""Data connectors and shared persistence that feed the canonical snapshot store."""

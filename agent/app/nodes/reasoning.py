@@ -29,6 +29,22 @@ _SMELL_EXPLAINERS: Dict[str, str] = {
     "single_instance_risk": "At least one service has only one instance, so a single pod failure can remove that service's capacity.",
     "coupling_risk": "A service has many outbound dependencies, increasing coordination, failure propagation, and change risk.",
     "high_error_rate": "The observed error rate is high enough to require resilience and failure-containment patterns.",
+    "error_burst": "Recent logs show an elevated error or 5xx rate in the snapshot window.",
+    "timeout_pressure": "Recent logs show repeated timeout behavior, which often points to slow or overloaded dependencies.",
+    "dependency_instability": "Recent logs show dependency connection or resolution failures that can propagate upstream.",
+    "probe_instability": "Recent logs show health probe failures; this is operational evidence to validate before broad architecture changes.",
+    "crash_loop_signal": "Recent logs show crash or OOM-style evidence that may explain instability or restart behavior.",
+}
+
+_LOG_EVIDENCE_KEYS = {
+    "status_5xx_rate",
+    "status_4xx_rate",
+    "request_count",
+    "timeout_count",
+    "dependency_error_count",
+    "probe_failure_count",
+    "oom_killed_count",
+    "crash_signal_count",
 }
 
 
@@ -135,6 +151,10 @@ def _smell_lines(smells: List[dict]) -> List[str]:
                 f"  - Evidence: {_format_evidence(evidence)}.{service_text}",
             ]
         )
+        if set(evidence.keys()) & _LOG_EVIDENCE_KEYS:
+            lines.append(
+                "  - Source note: this smell is backed by normalized log evidence from the latest snapshot window; treat log samples as supporting evidence, not a complete root-cause proof."
+            )
     return lines
 
 
@@ -180,6 +200,33 @@ def _critique_lines(critiques: List[Critique]) -> List[str]:
     lines: List[str] = []
     for c in critiques:
         lines.append(f"- `{c.pattern_id}` [{c.level}]: {c.message}")
+    return lines
+
+
+def _log_analysis_lines(log_analysis: Dict[str, Any]) -> List[str]:
+    """Format optional LLM log analysis as experimental context only."""
+    if not log_analysis:
+        return ["- No experimental log analysis was attached to this run."]
+    if log_analysis.get("disabled_reason"):
+        return [f"- Experimental log analysis was skipped: `{log_analysis['disabled_reason']}`."]
+    if log_analysis.get("ignored_reason"):
+        return [f"- Experimental log analysis was ignored: `{log_analysis['ignored_reason']}`."]
+
+    lines = [
+        "- Experimental Gemini log analysis was attached as sidecar context only; it did not create smells or recommendations.",
+    ]
+    if log_analysis.get("category"):
+        lines.append(f"- Dominant category: `{log_analysis['category']}`.")
+    if log_analysis.get("suspected_component"):
+        lines.append(f"- Suspected component: `{log_analysis['suspected_component']}`.")
+    if log_analysis.get("confidence") is not None:
+        lines.append(f"- Classifier confidence: {log_analysis['confidence']}.")
+    if log_analysis.get("summary"):
+        lines.append(f"- Summary: {log_analysis['summary']}")
+    terms = log_analysis.get("evidence_terms")
+    if isinstance(terms, list) and terms:
+        rendered = ", ".join(f"`{term}`" for term in terms[:8])
+        lines.append(f"- Evidence terms: {rendered}.")
     return lines
 
 
@@ -234,6 +281,7 @@ def build_explanation_report(state: GraphState) -> str:
     recommendations = state.get("recommendations", [])
     critiques = state.get("critiques", [])
     plan_steps = state.get("final_plan", [])
+    log_analysis = state.get("log_analysis", {}) or {}
     patterns_by_id = _pattern_lookup(state.get("patterns", []) or [])
     affected_services = _affected_services_from_smells(smells)
 
@@ -259,6 +307,9 @@ def build_explanation_report(state: GraphState) -> str:
         "",
         "### Constraints and Warnings",
         *_critique_lines(critiques),
+        "",
+        "### Experimental Log Analysis",
+        *_log_analysis_lines(log_analysis),
         "",
         "### Execution Plan Rationale",
         *_plan_lines(recommendations, plan_steps),

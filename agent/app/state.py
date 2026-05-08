@@ -25,9 +25,13 @@ class TelemetrySignals(BaseModel):
     """
 
     request_latency_p95_ms: Optional[float] = None
+    request_latency_p50_ms: Optional[float] = None
+    request_latency_p90_ms: Optional[float] = None
     request_latency_p99_ms: Optional[float] = None
     db_latency_p95_ms: Optional[float] = None
     error_rate: Optional[float] = None  # 0..1
+    status_5xx_rate: Optional[float] = None  # 0..1
+    status_4xx_rate: Optional[float] = None  # 0..1
     cpu_utilization: Optional[float] = None  # 0..1
     memory_utilization: Optional[float] = None  # 0..1
     queue_backlog: Optional[float] = None
@@ -36,6 +40,11 @@ class TelemetrySignals(BaseModel):
     unavailable_replicas: Optional[float] = None
     single_instance_service_count: Optional[float] = None
     hpa_scaling_pressure: Optional[float] = None
+    timeout_count: Optional[float] = None
+    dependency_error_count: Optional[float] = None
+    probe_failure_count: Optional[float] = None
+    oom_killed_count: Optional[float] = None
+    crash_signal_count: Optional[float] = None
 
 
 class ServiceSnapshot(BaseModel):
@@ -61,10 +70,79 @@ class SnapshotSignals(BaseModel):
     cpu_utilization: Optional[float] = None
     memory_utilization: Optional[float] = None
     queue_backlog: Optional[float] = None
+    error_rate: Optional[float] = None
+    status_5xx_rate: Optional[float] = None
+    status_4xx_rate: Optional[float] = None
+    request_latency_p50_ms: Optional[float] = None
+    request_latency_p90_ms: Optional[float] = None
+    request_latency_p95_ms: Optional[float] = None
+    request_latency_p99_ms: Optional[float] = None
     pod_restart_total: Optional[float] = None
     unavailable_replicas: Optional[float] = None
     single_instance_service_count: Optional[float] = None
     hpa_scaling_pressure: Optional[float] = None
+
+
+class LogEvent(BaseModel):
+    """One normalized application/platform log event retained as snapshot evidence."""
+
+    timestamp: str
+    service: str
+    namespace: str
+    pod: str
+    level: str
+    category: str
+    message_sample: str
+    is_error: bool
+    container: Optional[str] = None
+    method: Optional[str] = None
+    route: Optional[str] = None
+    status_code: Optional[int] = None
+    latency_ms: Optional[float] = None
+    error_type: Optional[str] = None
+    trace_id: Optional[str] = None
+    count: int = 1
+
+
+class LogSignals(BaseModel):
+    """Aggregate log-derived signals over one snapshot window."""
+
+    model_config = ConfigDict(extra="allow")
+
+    request_count: float = 0.0
+    error_count: float = 0.0
+    error_rate: Optional[float] = None
+    status_5xx_rate: Optional[float] = None
+    status_4xx_rate: Optional[float] = None
+    request_latency_p50_ms: Optional[float] = None
+    request_latency_p90_ms: Optional[float] = None
+    request_latency_p95_ms: Optional[float] = None
+    request_latency_p99_ms: Optional[float] = None
+    timeout_count: float = 0.0
+    dependency_error_count: float = 0.0
+    probe_failure_count: float = 0.0
+    oom_killed_count: float = 0.0
+    crash_signal_count: float = 0.0
+
+
+class SnapshotLogDataQuality(BaseModel):
+    """Completeness and confidence hints for log ingestion and aggregation."""
+
+    logs_enabled: bool = False
+    pods_with_logs: int = 0
+    pods_without_logs: int = 0
+    parse_failures: int = 0
+    latency_sample_count: int = 0
+    latency_percentiles_reliable: bool = False
+
+
+class SnapshotLogs(BaseModel):
+    """Normalized log evidence and aggregate log signals for one snapshot."""
+
+    events: List[LogEvent] = Field(default_factory=list)
+    signals: LogSignals = Field(default_factory=LogSignals)
+    service_signals: Dict[str, LogSignals] = Field(default_factory=dict)
+    data_quality: SnapshotLogDataQuality = Field(default_factory=SnapshotLogDataQuality)
 
 
 class SnapshotDataQuality(BaseModel):
@@ -109,6 +187,7 @@ class ClusterSnapshot(BaseModel):
     services: List[ServiceSnapshot] = Field(default_factory=list)
     signals: SnapshotSignals = Field(default_factory=SnapshotSignals)
     topology: ServiceTopology = Field(default_factory=ServiceTopology)
+    logs: SnapshotLogs = Field(default_factory=SnapshotLogs)
     data_quality: SnapshotDataQuality = Field(default_factory=SnapshotDataQuality)
 
 
@@ -161,13 +240,14 @@ class RecommendationRequest(BaseModel):
 
     signals: Dict[str, float] = Field(default_factory=dict)
     topology: ServiceTopology = Field(default_factory=ServiceTopology)
+    logs: Dict[str, Any] = Field(default_factory=dict)
 
 
 def recommendation_request_has_inline_payload(req: RecommendationRequest) -> bool:
     """True when the client supplied explicit signals or topology to analyze."""
     if req.signals:
         return True
-    return bool(req.topology.services or req.topology.edges)
+    return bool(req.topology.services or req.topology.edges or req.logs)
 
 
 class RecommendationResponse(BaseModel):
@@ -191,6 +271,7 @@ class GraphState(TypedDict, total=False):
     # Populated from the API body; consumed by telemetry_agent.
     raw_signals: Dict[str, float]
     raw_topology: Dict[str, Any]
+    raw_logs: Dict[str, Any]
 
     # Canonical inputs after telemetry_agent; then smells → … → explanation_report.
     signals: Dict[str, float]
@@ -200,4 +281,5 @@ class GraphState(TypedDict, total=False):
     recommendations: List[Recommendation]
     critiques: List[Critique]
     final_plan: List[PlanStep]
+    log_analysis: Dict[str, Any]
     explanation_report: str

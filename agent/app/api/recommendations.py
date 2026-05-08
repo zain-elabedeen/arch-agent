@@ -53,10 +53,11 @@ def recommend(
     if recommendation_request_has_inline_payload(req):
         raw_signals = dict(req.signals)
         raw_topology = req.topology.model_dump(by_alias=True)
+        raw_logs = dict(req.logs)
         snapshot_db_id: Optional[str] = None
     else:
         try:
-            raw_signals, raw_topology, snap = fetch_snapshot_raw(settings, snapshot_run_id)
+            raw_signals, raw_topology, raw_logs, snap = fetch_snapshot_raw(settings, snapshot_run_id)
             snapshot_db_id = str(snap)
         except RuntimeError:
             raise HTTPException(
@@ -88,6 +89,7 @@ def recommend(
         "run_id": correlation_id,
         "raw_signals": raw_signals,
         "raw_topology": raw_topology,
+        "raw_logs": raw_logs,
         "signals": {},
         "topology": {},
         "smells": [],
@@ -95,6 +97,7 @@ def recommend(
         "recommendations": [],
         "critiques": [],
         "final_plan": [],
+        "log_analysis": {},
         "explanation_report": "",
     }
     out = graph.invoke(state)
@@ -117,4 +120,3 @@ def recommend(
         plan=out.get("final_plan", []),
         explanation_report=out.get("explanation_report", ""),
     )
-

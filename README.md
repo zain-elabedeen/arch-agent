@@ -54,20 +54,37 @@ Next:
 ```text
 Kubernetes API
     ->
+Ingestion Orchestrator Worker
+    ->
 Kubernetes Connector Worker
     ->
-Normalizer + Topology Builder
+Metrics/Topology Normalizer
     ->
+Postgres Snapshots
+
+Kubernetes Pod Logs
+    ->
+Ingestion Orchestrator Worker
+    ->
+Logs Connector Worker
+    ->
+Log Normalizer + Aggregator
+    ->
+Postgres Snapshots
+
 Postgres Snapshots
     ->
 Recommendation API
     ->
 LangGraph Pipeline
     ->
-Smells + Recommendations + Critiques + Plan + Report
+Smells + Recommendations + Critiques + Plan + Optional Log Analysis + Report
 ```
 
-The worker collects infrastructure data and writes snapshots.
+The ingestion orchestrator creates one run per polling cycle, then calls each
+configured connector worker with the same `run_id`. The Kubernetes worker owns
+workload, metric, and topology data. The logs worker owns log ingestion and
+merges normalized log signals into that same run.
 
 The API reads the latest snapshot, builds `GraphState`, and runs the reasoning graph.
 
@@ -158,19 +175,33 @@ Create an env file:
 cp .env.example .env
 ```
 
-Start API, worker, and Postgres:
+Start API and Postgres:
 
 ```bash
 docker compose up --build
+```
+
+Start the ingestion orchestrator in a separate terminal:
+
+```bash
+docker compose --profile workers up --build ingestion-worker
+```
+
+The individual connector workers are still available for debugging:
+
+```bash
+docker compose --profile connection-workers up --build k8s-worker logs-worker
 ```
 
 Services:
 
 - API: `http://127.0.0.1:8000`
 - Postgres: `localhost:5432`
-- Worker: `python -m agent.app.connectors.kubernetes.worker`
+- Ingestion orchestrator: `python -m agent.app.connectors.orchestrator`
+- Standalone Kubernetes worker: `python -m agent.app.connectors.kubernetes.worker`
+- Standalone logs worker: `python -m agent.app.connectors.logs.worker`
 
-The worker reads kube credentials from `${HOME}/.kube/config`, mounted into the container at `/kube/config`.
+The orchestrator and Kubernetes-backed workers read kube credentials from `${HOME}/.kube/config`, mounted into the container at `/kube/config`.
 
 If kubeconfig references local cert/key files, those paths must also be mounted. The compose file currently mounts `${HOME}/.minikube` for local Minikube-style credentials.
 
@@ -190,10 +221,16 @@ Common variables:
 | `ARCHAGENT_POSTGRES_DSN` | Postgres connection string |
 | `ARCHAGENT_K8S_AUTO_MIGRATE` | Auto-create/update connector tables |
 | `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
+| `ARCHAGENT_INGESTION_CONNECTORS` | Comma-separated connectors for the orchestrator. Default: `kubernetes,logs` |
 | `ARCHAGENT_K8S_INCLUDE_NAMESPACES` | Optional comma-separated allow-list of namespaces |
 | `ARCHAGENT_K8S_EXCLUDE_NAMESPACES` | Comma-separated namespace exclude list |
+| `ARCHAGENT_LOGS_ENABLED` | Enable the logs connector worker |
+| `ARCHAGENT_LOG_WINDOW_GRACE_SEC` | Extra seconds added to the log read window |
+| `ARCHAGENT_LOG_TAIL_LINES` | Max log lines read per pod/container per poll |
+| `ARCHAGENT_LOG_LLM_ENABLED` | Enable the experimental log-analysis agent in the recommendation pipeline |
+| `ARCHAGENT_LOG_SAMPLE_LIMIT` | Max normalized log samples sent to the optional log-analysis agent |
 | `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM pass |
-| `ARCHAGENT_LLM_PROVIDER` | `openai`, `ollama`, `agent_platform_gemini`, or `agent_platform_claude` |
+| `ARCHAGENT_LLM_PROVIDER` | `agent_platform_gemini`, `openai`, `ollama`, or `agent_platform_claude` |
 | `ARCHAGENT_LLM_MODEL` | Model used for explanation polish |
 | `ARCHAGENT_OPENAI_API_KEY` | OpenAI API key when using OpenAI |
 | `ARCHAGENT_OLLAMA_BASE_URL` | Ollama OpenAI-compatible base URL |
@@ -203,15 +240,7 @@ Common variables:
 
 ### LLM Providers
 
-The LLM is used by the reasoning and critic agents
-
-Local Ollama:
-
-```bash
-ARCHAGENT_LLM_PROVIDER=ollama
-ARCHAGENT_LLM_MODEL=llama3.1
-ARCHAGENT_OLLAMA_BASE_URL=http://localhost:11434/v1
-```
+The LLM is used by the explanation-only reasoning pass. Gemini on GCP is the default provider.
 
 Gemini on Google Cloud Agent Platform:
 
@@ -221,6 +250,14 @@ ARCHAGENT_LLM_MODEL=gemini-2.5-flash
 ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
 ARCHAGENT_GCP_LOCATION=global
 ARCHAGENT_GCP_GENAI_API_VERSION=v1
+```
+
+Local Ollama:
+
+```bash
+ARCHAGENT_LLM_PROVIDER=ollama
+ARCHAGENT_LLM_MODEL=llama3.1
+ARCHAGENT_OLLAMA_BASE_URL=http://localhost:11434/v1
 ```
 
 Claude on Google Cloud Agent Platform:
@@ -253,7 +290,10 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
 ```text
 agent/app/
   api/                    FastAPI route handlers
-  connectors/kubernetes/  Kubernetes collection, normalization, topology, persistence
+  connectors/orchestrator.py Creates runs and calls connector workers
+  connectors/repository.py Shared connector snapshot persistence
+  connectors/kubernetes/  Kubernetes collection, normalization, topology
+  connectors/logs/        Source-neutral log ingestion, Kubernetes log source, normalization
   models/                 Domain models
   nodes/                  LangGraph node implementations
   patterns/               Architecture pattern catalog
@@ -268,7 +308,7 @@ agent/app/
 The LangGraph pipeline is linear:
 
 ```text
-Telemetry -> Smell Detection -> Pattern Retrieval -> Recommendation -> Critic -> Planner -> Reasoning
+Telemetry -> Smell Detection -> Pattern Retrieval -> Recommendation -> Critic -> Planner -> Log Analysis -> Reasoning
 ```
 
 Node responsibilities:
@@ -279,11 +319,17 @@ Node responsibilities:
 - `recommend`: rank mapped patterns into recommendation records
 - `critic`: apply `avoid_when` constraints and structured pattern rules
 - `planner`: turn recommendations into ordered plan steps
+- `log_analysis`: optionally classify sampled normalized log events with Gemini for report context only
 - `reasoning`: produce the final explanation report
 
 The graph is defined in `agent/app/graph.py`. Node implementations live in `agent/app/nodes/`.
 
 ## Data Foundation
+
+The ingestion orchestrator lives at `agent/app/connectors/orchestrator.py`.
+It creates a shared run, then calls configured connector workers with that
+`run_id`. This is the mechanism that will later read integration settings and
+decide which connections should contribute to each run.
 
 The Kubernetes connector lives under `agent/app/connectors/kubernetes/`.
 
@@ -293,8 +339,23 @@ Main files:
 - `collector.py`: pulls pods, deployments, services, pod metrics, and HPAs
 - `normalizer.py`: converts Kubernetes objects into the canonical snapshot shape
 - `topology_builder.py`: infers service dependencies
-- `repository.py`: stores and loads snapshots from Postgres
 - `worker.py`: runs the collect -> normalize -> persist loop
+
+The logs connector lives under `agent/app/connectors/logs/`.
+
+Main files:
+
+- `models.py`: source-neutral raw log batch model
+- `kubernetes_source.py`: reads Kubernetes pod logs into raw batches
+- `normalizer.py`: parses JSON/plain-text logs and aggregates log signals
+- `worker.py`: runs the log collect -> normalize -> merge snapshot loop
+
+Shared connector persistence lives in `agent/app/connectors/repository.py`.
+
+The optional Gemini log classifier is an agent node, not part of the connector:
+`agent/app/nodes/log_analysis.py`. It reads normalized `logs.events` from the
+snapshot during the recommendation pipeline, stores sidecar context in
+`GraphState.log_analysis`, and cannot create smells or recommendations.
 
 The current snapshot model includes:
 
@@ -305,6 +366,7 @@ The current snapshot model includes:
 - HPA scaling pressure
 - queue backlog from HPA external metrics when available
 - topology edges
+- normalized log summaries when the logs worker is enabled
 - data quality hints
 
 By default, ingestion excludes Kubernetes/platform namespaces so
@@ -336,6 +398,7 @@ ArchAgent uses relational tables for stable query paths and JSONB for evolving s
 - `service_metrics`: queryable per-service metrics, namespace, replica health, and restart counts
 - `signals`: stable signal columns plus extensible `payload` JSONB
 - `topology`: dependency edges per run, including inference provenance when known
+- `log_events`: queryable normalized log event summaries for the latest log-enabled snapshots
 
 JSONB is preferred over a separate NoSQL datastore at this stage because snapshots still need run history, relational joins, and simple operational deployment.
 
@@ -390,8 +453,13 @@ Current smell examples:
 - `single_instance_risk`
 - `coupling_risk`
 - `high_error_rate`
+- `error_burst`
+- `timeout_pressure`
+- `dependency_instability`
+- `probe_instability`
+- `crash_loop_signal`
 
-Kubernetes-native smells make the system useful before Prometheus ingestion exists. Latency and error-rate based smells still require inline input today and will be better supported once a Prometheus connector is added.
+Kubernetes-native smells make the system useful before Prometheus ingestion exists. Log-backed smells use normalized request, error, timeout, dependency, probe, and crash signals from the logs connector.
 
 ## Patterns
 
