@@ -10,6 +10,7 @@ from __future__ import annotations
 import socket
 import sys
 import time
+import uuid
 from urllib.parse import urlparse
 
 from kubernetes.client import ApiException
@@ -20,7 +21,8 @@ from agent.app.config import get_settings
 from agent.app.connectors.kubernetes.client import build_apis
 from agent.app.connectors.kubernetes.collector import collect
 from agent.app.connectors.kubernetes.normalizer import normalize
-from agent.app.connectors.kubernetes.repository import ensure_connector_schema, save_run
+from agent.app.connectors.repository import ensure_connector_schema, load_run_snapshot, replace_run_snapshot, save_run
+from agent.app.connectors.snapshot_merge import snapshot_with_kubernetes
 from agent.app.logging_utils import configure_logging, get_logger
 
 logger = get_logger("agent.connectors.k8s.worker")
@@ -43,21 +45,34 @@ def _normalize_collected(c, settings):
     )
 
 
-def run_ingestion_once() -> None:
+def _collect_and_normalize_kubernetes(settings, apis=None):
+    apis = apis or build_apis()
+    c = collect(apis)
+    return _normalize_collected(c, settings)
+
+
+def run_ingestion_once(run_id: uuid.UUID | None = None, apis=None) -> uuid.UUID:
     settings = get_settings()
     if not settings.postgres_dsn:
         raise RuntimeError("ARCHAGENT_POSTGRES_DSN is required for the Kubernetes worker.")
+    
     engine = create_engine(settings.postgres_dsn, pool_pre_ping=True)
     if settings.k8s_auto_migrate:
         ensure_connector_schema(engine)
 
-    apis = build_apis()
-    c = collect(apis)
-    normalized = _normalize_collected(c, settings)
+    normalized = _collect_and_normalize_kubernetes(settings, apis)
 
     with engine.begin() as conn:
-        rid = save_run(conn, normalized)
+        if run_id:
+            existing = load_run_snapshot(conn, run_id)
+            if existing is None:
+                raise LookupError("run_not_found")
+            rid = run_id
+            replace_run_snapshot(conn, rid, snapshot_with_kubernetes(existing, normalized))
+        else:
+            rid = save_run(conn, normalized)
     logger.info("k8s snapshot saved run_id=%s services=%d", rid, len(normalized.get("services") or []))
+    return rid
 
 
 def _is_connection_refused_error(exc: BaseException) -> bool:
@@ -106,8 +121,7 @@ def main() -> None:
             engine = create_engine(settings.postgres_dsn, pool_pre_ping=True)
             if settings.k8s_auto_migrate:
                 ensure_connector_schema(engine)
-            c = collect(apis)
-            normalized = _normalize_collected(c, settings)
+            normalized = _collect_and_normalize_kubernetes(settings, apis)
             with engine.begin() as conn:
                 rid = save_run(conn, normalized)
             logger.info(

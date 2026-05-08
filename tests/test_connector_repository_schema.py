@@ -1,5 +1,6 @@
-from agent.app.connectors.kubernetes.repository import (
+from agent.app.connectors.repository import (
     _ddl_statements,
+    log_events_t,
     runs_t,
     service_metrics_t,
     signals_t,
@@ -49,6 +50,20 @@ def test_repository_tables_cover_normalized_snapshot_fields():
         "inferred_from",
     }.issubset(topology_t.c.keys())
 
+    assert {
+        "run_id",
+        "service_name",
+        "namespace",
+        "pod",
+        "level",
+        "category",
+        "status_code",
+        "latency_ms",
+        "is_error",
+        "count",
+        "message_sample",
+    }.issubset(log_events_t.c.keys())
+
 
 def test_repository_migrations_include_recent_normalizer_columns():
     ddl = "\n".join(_ddl_statements()).lower()
@@ -61,5 +76,7 @@ def test_repository_migrations_include_recent_normalizer_columns():
         "alter table signals add column if not exists single_instance_service_count double precision",
         "alter table signals add column if not exists hpa_scaling_pressure double precision",
         "alter table topology add column if not exists inferred_from text",
+        "create table if not exists log_events",
+        "create index if not exists idx_log_events_run_id on log_events",
     ):
         assert fragment in ddl

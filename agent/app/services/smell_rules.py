@@ -51,6 +51,24 @@ def _services_matching(topology: dict, predicate) -> List[str]:
     return sorted(matches)
 
 
+def _services_matching_log_summary(topology: dict, key: str, threshold: float) -> List[str]:
+    """Services whose per-service log summary has ``key`` above ``threshold``."""
+    matches: List[str] = []
+    for name, detail in _service_details(topology).items():
+        if not isinstance(detail, dict):
+            continue
+        summary = detail.get("log_summary") or {}
+        if not isinstance(summary, dict):
+            continue
+        try:
+            value = float(summary.get(key) or 0.0)
+        except (TypeError, ValueError):
+            continue
+        if value > threshold:
+            matches.append(str(name))
+    return sorted(matches)
+
+
 def detect_smells(metrics: dict, topology: dict) -> list[dict]:
     """
     Deterministic smell detection from canonical signals + topology.
@@ -65,6 +83,14 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
     memory = _value(metrics, "memory", "memory_utilization")
     backlog = _value(metrics, "backlog", "queue_backlog")
     error_rate = _value(metrics, "error_rate")
+    status_5xx_rate = _value(metrics, "status_5xx_rate")
+    status_4xx_rate = _value(metrics, "status_4xx_rate")
+    request_count = _value(metrics, "request_count")
+    timeout_count = _value(metrics, "timeout_count")
+    dependency_error_count = _value(metrics, "dependency_error_count")
+    probe_failure_count = _value(metrics, "probe_failure_count")
+    oom_killed_count = _value(metrics, "oom_killed_count")
+    crash_signal_count = _value(metrics, "crash_signal_count")
     restarts = _value(metrics, "pod_restart_total", "restart_count")
     unavailable = _value(metrics, "unavailable_replicas")
     single_instance_services = _value(metrics, "single_instance_service_count")
@@ -74,6 +100,12 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
     restart_services = _services_matching(topology, lambda d: int(d.get("restarts") or 0) >= 3)
     unavailable_services = _services_matching(topology, lambda d: int(d.get("unavailable_replicas") or 0) > 0)
     single_instance_service_names = _services_matching(topology, lambda d: int(d.get("replicas") or 0) <= 1)
+    error_services = _services_matching_log_summary(topology, "error_rate", 0.05)
+    status_5xx_services = _services_matching_log_summary(topology, "status_5xx_rate", 0.03)
+    timeout_services = _services_matching_log_summary(topology, "timeout_count", 0.0)
+    dependency_error_services = _services_matching_log_summary(topology, "dependency_error_count", 0.0)
+    probe_failure_services = _services_matching_log_summary(topology, "probe_failure_count", 0.0)
+    crash_signal_services = _services_matching_log_summary(topology, "crash_signal_count", 0.0)
 
     if db_latency is not None and req_p95 is not None and db_latency > 250 and req_p95 > 500:
         smells.append(
@@ -112,6 +144,77 @@ def detect_smells(metrics: dict, topology: dict) -> list[dict]:
                 "severity": "high" if backlog > 25000 else "medium",
                 "confidence": 0.87,
                 "evidence": {"backlog": backlog},
+            }
+        )
+
+    if (error_rate is not None and error_rate > 0.05) or (status_5xx_rate is not None and status_5xx_rate > 0.03):
+        evidence = {
+            **({"error_rate": error_rate} if error_rate is not None else {}),
+            **({"status_5xx_rate": status_5xx_rate} if status_5xx_rate is not None else {}),
+            **({"status_4xx_rate": status_4xx_rate} if status_4xx_rate is not None else {}),
+            **({"request_count": request_count} if request_count is not None else {}),
+        }
+        services = sorted(set(error_services + status_5xx_services))
+        smells.append(
+            {
+                "type": "error_burst",
+                "severity": "high" if (error_rate or 0.0) > 0.12 or (status_5xx_rate or 0.0) > 0.08 else "medium",
+                "confidence": 0.82,
+                "evidence": {**evidence, **({"services": _join_services(services)} if services else {})},
+            }
+        )
+
+    if timeout_count is not None and timeout_count >= 3:
+        smells.append(
+            {
+                "type": "timeout_pressure",
+                "severity": "high" if timeout_count >= 10 else "medium",
+                "confidence": 0.82,
+                "evidence": {
+                    "timeout_count": timeout_count,
+                    **({"request_latency_p95_ms": req_p95} if req_p95 is not None else {}),
+                    **({"services": _join_services(timeout_services)} if timeout_services else {}),
+                },
+            }
+        )
+
+    if dependency_error_count is not None and dependency_error_count >= 2:
+        smells.append(
+            {
+                "type": "dependency_instability",
+                "severity": "high" if dependency_error_count >= 8 else "medium",
+                "confidence": 0.8,
+                "evidence": {
+                    "dependency_error_count": dependency_error_count,
+                    **({"services": _join_services(dependency_error_services)} if dependency_error_services else {}),
+                },
+            }
+        )
+
+    if probe_failure_count is not None and probe_failure_count > 0:
+        smells.append(
+            {
+                "type": "probe_instability",
+                "severity": "high" if probe_failure_count >= 3 else "medium",
+                "confidence": 0.76,
+                "evidence": {
+                    "probe_failure_count": probe_failure_count,
+                    **({"services": _join_services(probe_failure_services)} if probe_failure_services else {}),
+                },
+            }
+        )
+
+    if (crash_signal_count is not None and crash_signal_count > 0) or (oom_killed_count is not None and oom_killed_count > 0):
+        smells.append(
+            {
+                "type": "crash_loop_signal",
+                "severity": "high" if (crash_signal_count or 0.0) >= 3 or (oom_killed_count or 0.0) >= 1 else "medium",
+                "confidence": 0.8,
+                "evidence": {
+                    **({"crash_signal_count": crash_signal_count} if crash_signal_count is not None else {}),
+                    **({"oom_killed_count": oom_killed_count} if oom_killed_count is not None else {}),
+                    **({"services": _join_services(crash_signal_services)} if crash_signal_services else {}),
+                },
             }
         )
 

@@ -127,6 +127,29 @@ SMELL_TO_PATTERN_MAP: Dict[str, List[MappedPattern]] = {
         {"pattern": "retry_with_backoff", "priority": 2, "reason": "Handle transient errors safely"},
         {"pattern": "bulkhead", "priority": 3, "reason": "Isolate failures and resource contention"},
     ],
+    "error_burst": [
+        {"pattern": "circuit_breaker", "priority": 1, "reason": "Contain repeated error responses from spreading"},
+        {"pattern": "bulkhead", "priority": 2, "reason": "Isolate failing dependencies or resource pools"},
+        {"pattern": "retry_with_backoff", "priority": 3, "reason": "Handle transient errors without immediate retry storms"},
+    ],
+    "timeout_pressure": [
+        {"pattern": "timeouts_bulkheads", "priority": 1, "reason": "Bound slow dependency calls and isolate timeout pressure"},
+        {"pattern": "circuit_breaker", "priority": 2, "reason": "Fail fast when dependencies repeatedly time out"},
+        {"pattern": "backpressure", "priority": 3, "reason": "Reduce intake while timeout pressure is active"},
+    ],
+    "dependency_instability": [
+        {"pattern": "circuit_breaker", "priority": 1, "reason": "Prevent unstable dependencies from cascading failures"},
+        {"pattern": "retry_with_backoff", "priority": 2, "reason": "Handle transient dependency failures with controlled retries"},
+        {"pattern": "bulkhead", "priority": 3, "reason": "Isolate dependency resource pools and blast radius"},
+    ],
+    "probe_instability": [
+        {"pattern": "timeouts_bulkheads", "priority": 1, "reason": "Review health-check timeout and dependency isolation behavior"},
+        {"pattern": "bulkhead", "priority": 2, "reason": "Separate unhealthy dependency/resource paths from the main workload"},
+    ],
+    "crash_loop_signal": [
+        {"pattern": "bulkhead", "priority": 1, "reason": "Isolate resource contention or failing components causing crashes"},
+        {"pattern": "horizontal_scaling", "priority": 2, "reason": "Add capacity only if crash evidence aligns with resource pressure"},
+    ],
 }
 
 

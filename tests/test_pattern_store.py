@@ -37,3 +37,17 @@ def test_kubernetes_native_smells_map_to_existing_patterns():
         "single_instance_risk",
     ):
         assert store.get_patterns_for_smell(smell), smell
+
+
+def test_log_backed_smells_map_to_existing_patterns():
+    patterns_path = Path(__file__).resolve().parents[1] / "agent" / "app" / "patterns"
+    store = PatternStore.load_patterns(str(patterns_path))
+
+    for smell in (
+        "error_burst",
+        "timeout_pressure",
+        "dependency_instability",
+        "probe_instability",
+        "crash_loop_signal",
+    ):
+        assert store.get_patterns_for_smell(smell), smell

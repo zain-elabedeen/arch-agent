@@ -142,3 +142,4 @@ def test_normalize_include_namespaces_limits_collection_scope():
     )
 
     assert [svc["name"] for svc in out["services"]] == ["worker"]
+

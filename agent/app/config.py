@@ -39,6 +39,18 @@ class Settings(BaseSettings):
 
     # Kubernetes connector worker: poll interval (seconds) when running ``worker`` module.
     k8s_poll_interval_sec: int = 45
+    ingestion_connectors: str = "kubernetes,logs"
+
+    # Logs connector ingestion. The MVP source is Kubernetes pod logs, while the
+    # normalized model is source-neutral for future providers.
+    logs_enabled: bool = True
+    log_window_grace_sec: int = 10
+    log_tail_lines: int = 500
+
+    # Optional log-analysis agent. This runs inside the recommendation pipeline,
+    # not inside the logs connector/parser, and cannot create decisions directly.
+    log_llm_enabled: bool = True
+    log_sample_limit: int = 20
 
     # Namespace filters for local/dev clusters. Empty include means "all allowed
     # namespaces"; excludes remove Kubernetes/platform namespaces by default.
@@ -62,8 +74,8 @@ class Settings(BaseSettings):
         "gcp_gemini",
         "vertex_claude",
         "gcp_claude",
-    ] = "openai"
-    llm_model: str = "gpt-4o-mini"
+    ] = "agent_platform_gemini"
+    llm_model: str = "gemini-2.5-flash"
     openai_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434/v1"
     gcp_project_id: Optional[str] = None

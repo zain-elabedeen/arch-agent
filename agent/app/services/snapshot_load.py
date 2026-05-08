@@ -7,13 +7,13 @@ Used by ``POST /v1/recommendations`` when the request body carries no inline pay
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from uuid import UUID
 
 from sqlalchemy import create_engine
 
 from agent.app.config import Settings
-from agent.app.connectors.kubernetes.repository import ensure_connector_schema, load_run_as_raw_state
+from agent.app.connectors.repository import ensure_connector_schema, load_run_as_raw_state
 
 
 @lru_cache(maxsize=8)
@@ -24,9 +24,9 @@ def _engine_for(dsn: str):
 def fetch_snapshot_raw(
     settings: Settings,
     run_id: Optional[UUID],
-) -> Tuple[dict, dict, UUID]:
+) -> Tuple[dict, dict, Dict[str, Any], UUID]:
     """
-    Return ``(raw_signals, raw_topology, db_run_id)`` from Postgres.
+    Return ``(raw_signals, raw_topology, raw_logs, db_run_id)`` from Postgres.
 
     Raises:
         RuntimeError: if ``postgres_dsn`` is not configured.

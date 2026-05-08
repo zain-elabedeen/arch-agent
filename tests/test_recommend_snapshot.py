@@ -31,6 +31,7 @@ def test_snapshot_mode_uses_fetch(monkeypatch: pytest.MonkeyPatch, client: TestC
         return (
             {"cpu_utilization": 0.5, "memory_utilization": 0.4},
             {"services": ["api"], "edges": [], "critical_stores": [], "critical_queues": []},
+            {},
             snap,
         )
 
@@ -40,6 +41,50 @@ def test_snapshot_mode_uses_fetch(monkeypatch: pytest.MonkeyPatch, client: TestC
     data = r.json()
     assert "recommendations" in data
     assert isinstance(data.get("explanation_report"), str)
+
+
+def test_snapshot_mode_uses_log_derived_signals(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:
+    snap = uuid4()
+
+    def fake_fetch(settings, rid):
+        return (
+            {
+                "request_count": 100,
+                "error_rate": 0.08,
+                "status_5xx_rate": 0.05,
+                "timeout_count": 4,
+                "request_latency_p95_ms": 820,
+            },
+            {
+                "services": ["test-api"],
+                "edges": [],
+                "service_details": {
+                    "test-api": {
+                        "namespace": "default",
+                        "replicas": 2,
+                        "available_replicas": 2,
+                        "restarts": 0,
+                        "log_summary": {
+                            "error_rate": 0.08,
+                            "status_5xx_rate": 0.05,
+                            "timeout_count": 4,
+                        },
+                    }
+                },
+            },
+            {},
+            snap,
+        )
+
+    monkeypatch.setattr("agent.app.api.recommendations.fetch_snapshot_raw", fake_fetch)
+    r = client.post("/v1/recommendations", json={})
+    assert r.status_code == 200
+    data = r.json()
+    smell_types = {smell["type"] for smell in data["smells"]}
+    assert "error_burst" in smell_types
+    assert "timeout_pressure" in smell_types
+    timeout = next(smell for smell in data["smells"] if smell["type"] == "timeout_pressure")
+    assert timeout["evidence"]["services"] == "test-api"
 
 
 def test_snapshot_mode_missing_dsn(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:

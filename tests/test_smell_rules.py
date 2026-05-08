@@ -73,3 +73,41 @@ def test_detect_smells_includes_affected_services_from_topology_details():
 
     single_instance = next(s for s in smells if s["type"] == "single_instance_risk")
     assert single_instance["evidence"]["services"] == "demo-api"
+
+
+def test_detect_smells_includes_log_backed_smells():
+    smells = detect_smells(
+        {
+            "error_rate": 0.08,
+            "status_5xx_rate": 0.05,
+            "request_count": 100,
+            "timeout_count": 4,
+            "dependency_error_count": 2,
+            "probe_failure_count": 1,
+            "crash_signal_count": 1,
+        },
+        {
+            "service_details": {
+                "test-api": {
+                    "log_summary": {
+                        "error_rate": 0.08,
+                        "status_5xx_rate": 0.05,
+                        "timeout_count": 4,
+                        "dependency_error_count": 2,
+                        "probe_failure_count": 1,
+                        "crash_signal_count": 1,
+                    }
+                }
+            }
+        },
+    )
+
+    smell_types = {s["type"] for s in smells}
+    assert "error_burst" in smell_types
+    assert "timeout_pressure" in smell_types
+    assert "dependency_instability" in smell_types
+    assert "probe_instability" in smell_types
+    assert "crash_loop_signal" in smell_types
+
+    timeout = next(s for s in smells if s["type"] == "timeout_pressure")
+    assert timeout["evidence"]["services"] == "test-api"
