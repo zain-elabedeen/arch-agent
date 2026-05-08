@@ -1,4 +1,7 @@
+import time
+
 from agent.app.nodes.reasoning import (
+    _call_with_timeout,
     _build_llm_prompt,
     _gcp_location,
     _gcp_project_id,
@@ -154,3 +157,14 @@ def test_agent_platform_project_and_location_can_use_google_env(monkeypatch):
 
     assert _gcp_project_id(state, settings, "agent_platform_gemini") == "infra-agent-dev"
     assert _gcp_location(settings) == "us-central1"
+
+
+def test_llm_call_timeout_returns_none_fast():
+    started = time.monotonic()
+
+    def slow_call():
+        time.sleep(0.2)
+        return "late"
+
+    assert _call_with_timeout(slow_call, 0.01, run_id="test-run", provider="agent_platform_gemini") is None
+    assert time.monotonic() - started < 0.15

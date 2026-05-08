@@ -26,11 +26,14 @@ services:
     environment:
       ARCHAGENT_POSTGRES_DSN: postgresql+psycopg://archagent:archagent@postgres:5432/archagent
       ARCHAGENT_K8S_AUTO_MIGRATE: "true"
+      GOOGLE_CLOUD_QUOTA_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
     depends_on:
       postgres:
         condition: service_healthy
     ports:
       - "8000:8000"
+    volumes:
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
     command: ["uvicorn", "agent.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
   ingestion-worker:

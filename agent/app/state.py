@@ -258,6 +258,8 @@ class RecommendationResponse(BaseModel):
     recommendations: List[Recommendation]
     critiques: List[Critique]
     plan: List[PlanStep]
+    log_analysis: Dict[str, Any] = Field(default_factory=dict)
+    explanation_source: str = ""
     explanation_report: str = ""
 
 
@@ -282,4 +284,5 @@ class GraphState(TypedDict, total=False):
     critiques: List[Critique]
     final_plan: List[PlanStep]
     log_analysis: Dict[str, Any]
+    explanation_source: str
     explanation_report: str

@@ -229,9 +229,13 @@ Common variables:
 | `ARCHAGENT_LOG_TAIL_LINES` | Max log lines read per pod/container per poll |
 | `ARCHAGENT_LOG_LLM_ENABLED` | Enable the experimental log-analysis agent in the recommendation pipeline |
 | `ARCHAGENT_LOG_SAMPLE_LIMIT` | Max normalized log samples sent to the optional log-analysis agent |
+| `ARCHAGENT_LOG_LLM_MODEL` | Optional model override for log classification. Defaults to `ARCHAGENT_LLM_MODEL` |
+| `ARCHAGENT_LOG_LLM_MAX_OUTPUT_TOKENS` | Max output tokens for log classification. Default: `512` |
 | `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM pass |
 | `ARCHAGENT_LLM_PROVIDER` | `agent_platform_gemini`, `openai`, `ollama`, or `agent_platform_claude` |
 | `ARCHAGENT_LLM_MODEL` | Model used for explanation polish |
+| `ARCHAGENT_LLM_TIMEOUT_SEC` | Max seconds to wait for explanation LLM before deterministic fallback. Default: `20` |
+| `ARCHAGENT_LLM_MAX_OUTPUT_TOKENS` | Max output tokens for explanation LLM. Default: `2500` |
 | `ARCHAGENT_OPENAI_API_KEY` | OpenAI API key when using OpenAI |
 | `ARCHAGENT_OLLAMA_BASE_URL` | Ollama OpenAI-compatible base URL |
 | `ARCHAGENT_GCP_PROJECT_ID` | GCP project ID for Agent Platform providers |
@@ -247,6 +251,8 @@ Gemini on Google Cloud Agent Platform:
 ```bash
 ARCHAGENT_LLM_PROVIDER=agent_platform_gemini
 ARCHAGENT_LLM_MODEL=gemini-2.5-flash
+ARCHAGENT_LLM_TIMEOUT_SEC=20
+ARCHAGENT_LLM_MAX_OUTPUT_TOKENS=2500
 ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
 ARCHAGENT_GCP_LOCATION=global
 ARCHAGENT_GCP_GENAI_API_VERSION=v1
@@ -276,6 +282,16 @@ gcloud auth application-default login
 ```
 
 For service accounts, set `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json` in the process environment. The GCP project must have the Agent Platform API enabled, `roles/aiplatform.user` or equivalent permissions, and access to the selected Gemini or Claude model in the configured location.
+
+For Docker Compose local development, the API container mounts `${HOME}/.config/gcloud` into `/root/.config/gcloud`, so `gcloud auth application-default login` on the host is enough for Application Default Credentials. Recreate the API container after authenticating.
+
+If you use end-user ADC credentials, set a quota project to avoid quota/billing ambiguity:
+
+```bash
+gcloud auth application-default set-quota-project your-gcp-project-id
+```
+
+For quota-sensitive local testing, prefer one LLM call per request: enable `ARCHAGENT_LOG_LLM_ENABLED=true` and set `ARCHAGENT_LLM_REASONING_ENABLED=false`, or keep log analysis disabled while testing the report LLM. Keep `ARCHAGENT_LLM_TIMEOUT_SEC` lower than the HTTP client timeout so the API can return the deterministic report instead of hanging on a slow model response.
 
 ## Tests
 

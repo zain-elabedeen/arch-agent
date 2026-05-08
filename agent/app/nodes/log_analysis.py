@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Dict, Iterable, List
 
 from agent.app.config import Settings
@@ -46,18 +47,34 @@ def _resolve_location(settings: Settings) -> str:
 
 
 def _event_payload(events: Iterable[LogEvent], sample_limit: int) -> List[Dict[str, Any]]:
+    """Sample all available log events, prioritizing errors but not requiring them."""
+    event_list = list(events)
+
+    def priority(event: LogEvent) -> tuple[int, str]:
+        level = (event.level or "").lower()
+        high_signal = (
+            event.is_error
+            or level in {"warning", "warn", "error", "critical", "fatal"}
+            or event.category in {"timeout", "dependency_error", "probe_failure", "crash_signal", "http_5xx"}
+            or bool(event.status_code and event.status_code >= 400)
+        )
+        return (0 if high_signal else 1, event.timestamp)
+
     payload: List[Dict[str, Any]] = []
-    for event in events:
-        if event.level not in {"warning", "warn", "error", "critical", "fatal"} and not event.is_error:
-            continue
+    for event in sorted(event_list, key=priority):
         payload.append(
             {
+                "timestamp": event.timestamp,
                 "service": event.service,
+                "namespace": event.namespace,
+                "pod": event.pod,
                 "level": event.level,
                 "category": event.category,
                 "message_sample": event.message_sample,
                 "status_code": event.status_code,
                 "latency_ms": event.latency_ms,
+                "error_type": event.error_type,
+                "count": event.count,
             }
         )
         if len(payload) >= sample_limit:
@@ -66,21 +83,68 @@ def _event_payload(events: Iterable[LogEvent], sample_limit: int) -> List[Dict[s
 
 
 def _parse_json_object(text: str) -> Dict[str, Any]:
-    parsed = json.loads(text)
-    if not isinstance(parsed, dict):
-        raise ValueError("log analysis agent returned non-object JSON")
-    allowed = {"category", "suspected_component", "confidence", "summary", "evidence_terms"}
-    return {k: v for k, v in parsed.items() if k in allowed}
+    raw = text.strip()
+    candidates = [raw]
+    unfenced = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.IGNORECASE | re.DOTALL).strip()
+    if unfenced != raw:
+        candidates.append(unfenced)
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(raw[start : end + 1])
+
+    last_error: Exception | None = None
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError as exc:
+            last_error = exc
+            continue
+        if not isinstance(parsed, dict):
+            raise ValueError("log analysis agent returned non-object JSON")
+        allowed = {"category", "suspected_component", "confidence", "summary", "evidence_terms"}
+        return {k: v for k, v in parsed.items() if k in allowed}
+    raise ValueError(f"log analysis agent returned invalid JSON: {last_error}")
+
+
+def _log_llm_model(settings: Settings) -> str:
+    return settings.log_llm_model or settings.llm_model
+
+
+def _llm_failure_payload(exc: Exception, event_count: int, sample_count: int) -> Dict[str, Any]:
+    message = str(exc)
+    quota_exhausted = "RESOURCE_EXHAUSTED" in message or "429" in message
+    return {
+        "ignored_reason": "llm_quota_exhausted" if quota_exhausted else "invalid_or_failed_llm_output",
+        "error_type": exc.__class__.__name__,
+        "message": message,
+        "event_count": event_count,
+        "sample_count": sample_count,
+    }
 
 
 def classify_log_samples(events: Iterable[LogEvent], settings: Settings) -> Dict[str, Any]:
-    """Return structured Gemini analysis or disabled metadata."""
+    """Return structured Gemini analysis or explicit empty-state metadata."""
     if not settings.log_llm_enabled:
-        return {}
+        return {"disabled_reason": "log_llm_disabled"}
 
-    samples = _event_payload(events, max(1, settings.log_sample_limit))
+    event_list = list(events)
+    if not event_list:
+        return {
+            "status": "no_logs_present",
+            "message": "No normalized log events were available for this run.",
+            "event_count": 0,
+            "sample_count": 0,
+        }
+
+    samples = _event_payload(event_list, max(1, settings.log_sample_limit))
     if not samples:
-        return {}
+        return {
+            "status": "no_log_samples",
+            "message": "Log events were present, but no samples could be prepared for LLM classification.",
+            "event_count": len(event_list),
+            "sample_count": 0,
+        }
 
     provider = _normalize_provider(settings.llm_provider)
     if provider != "agent_platform_gemini":
@@ -111,23 +175,29 @@ def classify_log_samples(events: Iterable[LogEvent], settings: Settings) -> Dict
         )
         try:
             resp = client.models.generate_content(
-                model=settings.llm_model,
+                model=_log_llm_model(settings),
                 contents=prompt,
                 config={
                     "temperature": 0.0,
                     "system_instruction": _SYSTEM,
                     "response_mime_type": "application/json",
+                    "max_output_tokens": settings.log_llm_max_output_tokens,
                 },
             )
             content = getattr(resp, "text", "") or ""
-            return _parse_json_object(content.strip())
+            analysis = _parse_json_object(content.strip())
+            analysis.setdefault("event_count", len(event_list))
+            analysis.setdefault("sample_count", len(samples))
+            analysis.setdefault("analysis_source", "gemini")
+            analysis.setdefault("llm_model", _log_llm_model(settings))
+            return analysis
         finally:
             close = getattr(client, "close", None)
             if callable(close):
                 close()
     except Exception as e:
         logger.warning("log_analysis_agent failed error=%s", e)
-        return {"ignored_reason": "invalid_or_failed_llm_output"}
+        return _llm_failure_payload(e, len(event_list), len(samples))
 
 
 def _events_from_state(state: GraphState) -> List[LogEvent]:

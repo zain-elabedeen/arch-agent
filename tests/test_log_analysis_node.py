@@ -1,5 +1,5 @@
 from agent.app.config import Settings
-from agent.app.nodes.log_analysis import classify_log_samples, log_analysis_node
+from agent.app.nodes.log_analysis import _llm_failure_payload, _parse_json_object, classify_log_samples, log_analysis_node
 from agent.app.state import LogEvent
 
 
@@ -17,7 +17,25 @@ def _event() -> LogEvent:
 
 
 def test_log_analysis_agent_is_disabled_by_default():
-    assert classify_log_samples([_event()], Settings(log_llm_enabled=False)) == {}
+    assert classify_log_samples([_event()], Settings(log_llm_enabled=False)) == {"disabled_reason": "log_llm_disabled"}
+
+
+def test_log_analysis_agent_reports_no_logs_present():
+    assert classify_log_samples([], Settings(log_llm_enabled=True)) == {
+        "status": "no_logs_present",
+        "message": "No normalized log events were available for this run.",
+        "event_count": 0,
+        "sample_count": 0,
+    }
+
+
+def test_log_analysis_agent_sends_info_logs_when_they_are_present(monkeypatch):
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT", raising=False)
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT_ID", raising=False)
+    event = _event().model_copy(update={"level": "info", "category": "request", "is_error": False})
+    assert classify_log_samples([event], Settings(log_llm_enabled=True, gcp_project_id="")) == {
+        "disabled_reason": "gcp_project_id_missing"
+    }
 
 
 def test_log_analysis_agent_requires_gcp_project_when_enabled(monkeypatch):
@@ -58,3 +76,13 @@ def test_log_analysis_node_reads_raw_logs_without_changing_decision_state(monkey
     assert out["log_analysis"] == {"disabled_reason": "gcp_project_id_missing"}
     assert out["smells"] == [{"type": "timeout_pressure"}]
     assert out["recommendations"] == []
+
+
+def test_log_analysis_quota_errors_are_explicit():
+    error = RuntimeError("429 RESOURCE_EXHAUSTED. Resource exhausted. Please try again later.")
+    assert _llm_failure_payload(error, 133, 20)["ignored_reason"] == "llm_quota_exhausted"
+
+
+def test_log_analysis_parser_accepts_fenced_json():
+    parsed = _parse_json_object("```json\n{\"category\": \"timeout\", \"ignored\": true}\n```")
+    assert parsed == {"category": "timeout"}

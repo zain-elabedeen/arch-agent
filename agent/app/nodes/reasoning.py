@@ -9,7 +9,9 @@ model invents or drops facts, output is rejected in favor of the template report
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List
+import queue
+import threading
+from typing import Any, Callable, Dict, List, TypeVar
 
 from agent.app.config import Settings
 from agent.app.logging_utils import get_logger
@@ -17,6 +19,8 @@ from agent.app.models.pattern import ArchitecturePattern
 from agent.app.state import Critique, GraphState, Recommendation
 
 logger = get_logger("agent.nodes.reasoning")
+
+T = TypeVar("T")
 
 _SMELL_EXPLAINERS: Dict[str, str] = {
     "read_scaling_bottleneck": "Read paths appear to be contributing to elevated request or database latency.",
@@ -46,6 +50,36 @@ _LOG_EVIDENCE_KEYS = {
     "oom_killed_count",
     "crash_signal_count",
 }
+
+
+def _call_with_timeout(fn: Callable[[], T], timeout_sec: float, *, run_id: str, provider: str) -> T | None:
+    if timeout_sec <= 0:
+        return fn()
+
+    result: queue.Queue[tuple[bool, T | BaseException]] = queue.Queue(maxsize=1)
+
+    def target() -> None:
+        try:
+            result.put((True, fn()))
+        except BaseException as exc:  # pragma: no cover - re-raised in caller thread
+            result.put((False, exc))
+
+    worker = threading.Thread(target=target, daemon=True)
+    worker.start()
+    worker.join(timeout_sec)
+    if worker.is_alive():
+        logger.warning(
+            "reasoning_agent llm timed out run_id=%s provider=%s timeout_sec=%s source=fallback_deterministic",
+            run_id,
+            provider,
+            timeout_sec,
+        )
+        return None
+
+    ok, value = result.get_nowait()
+    if ok:
+        return value  # type: ignore[return-value]
+    raise value
 
 
 def _format_evidence(evidence: Dict[str, Any]) -> str:
@@ -206,7 +240,16 @@ def _critique_lines(critiques: List[Critique]) -> List[str]:
 def _log_analysis_lines(log_analysis: Dict[str, Any]) -> List[str]:
     """Format optional LLM log analysis as experimental context only."""
     if not log_analysis:
-        return ["- No experimental log analysis was attached to this run."]
+        return ["- No normalized log events were present for this run."]
+
+    status = log_analysis.get("status")
+    if status == "no_logs_present":
+        return ["- No normalized log events were present for this run."]
+    if status == "no_log_samples":
+        return [
+            "- Log events were present, but no samples could be prepared for LLM classification.",
+            f"- Events available: {log_analysis.get('event_count', 0)}; samples sent to LLM: {log_analysis.get('sample_count', 0)}.",
+        ]
     if log_analysis.get("disabled_reason"):
         return [f"- Experimental log analysis was skipped: `{log_analysis['disabled_reason']}`."]
     if log_analysis.get("ignored_reason"):
@@ -341,7 +384,7 @@ def _build_llm_prompt(state: GraphState) -> str:
         "- Explain which service or services are affected when the report names them.\n"
         "- Explain the recommended patterns as a systems and cloud architecture expert would: what problem they solve, how they change the architecture, why they help, and what tradeoffs they introduce.\n"
         "- Make the cause -> pattern -> tradeoff -> next step reasoning easy to follow.\n"
-        "- Use clear markdown with short paragraphs and bullets, but do not make the explanation terse.\n\n"
+        "- Use clear markdown with short paragraphs and bullets. Be comprehensive, but keep the report concise enough for an API response; target 1,200-1,800 words unless the input is unusually large.\n\n"
         "Rewrite the following report as a clearer, more educational architecture explanation:\n\n"
         f"{base_report}"
     )
@@ -405,6 +448,7 @@ def _openai_compatible_report(state: GraphState, settings: Settings, provider: s
     resp = client.chat.completions.create(
         model=settings.llm_model,
         temperature=0.2,
+        max_tokens=settings.llm_max_output_tokens,
         messages=[
             {
                 "role": "system",
@@ -469,6 +513,7 @@ def _agent_platform_gemini_report(state: GraphState, settings: Settings, provide
             config={
                 "temperature": 0.2,
                 "system_instruction": _LLM_SYSTEM_INSTRUCTION,
+                "max_output_tokens": settings.llm_max_output_tokens,
             },
         )
         return (getattr(resp, "text", None) or "").strip() or None
@@ -508,7 +553,7 @@ def _agent_platform_claude_report(state: GraphState, settings: Settings, provide
     try:
         message = client.messages.create(
             model=settings.llm_model,
-            max_tokens=3000,
+            max_tokens=settings.llm_max_output_tokens,
             temperature=0.2,
             system=_LLM_SYSTEM_INSTRUCTION,
             messages=[{"role": "user", "content": _build_llm_prompt(state)}],
@@ -546,19 +591,26 @@ def _llm_report(state: GraphState, settings: Settings) -> str | None:
             settings.gcp_genai_api_version if provider == "agent_platform_gemini" else "n/a",
         )
 
-        if provider in {"openai", "ollama"}:
-            content = _openai_compatible_report(state, settings, provider)
-        elif provider == "agent_platform_gemini":
-            content = _agent_platform_gemini_report(state, settings, provider)
-        elif provider == "agent_platform_claude":
-            content = _agent_platform_claude_report(state, settings, provider)
-        else:
+        def generate() -> str | None:
+            if provider in {"openai", "ollama"}:
+                return _openai_compatible_report(state, settings, provider)
+            if provider == "agent_platform_gemini":
+                return _agent_platform_gemini_report(state, settings, provider)
+            if provider == "agent_platform_claude":
+                return _agent_platform_claude_report(state, settings, provider)
             logger.warning(
                 "reasoning_agent unsupported llm provider run_id=%s provider=%s",
                 state.get("run_id", "n/a"),
                 settings.llm_provider,
             )
             return None
+
+        content = _call_with_timeout(
+            generate,
+            settings.llm_timeout_sec,
+            run_id=str(state.get("run_id", "n/a")),
+            provider=provider,
+        )
 
         if not content:
             logger.info(
@@ -606,6 +658,7 @@ def reasoning_node(state: GraphState, settings: Settings | None = None) -> Graph
         if llm_output:
             if _is_llm_output_consistent(state, llm_output):
                 state["explanation_report"] = llm_output
+                state["explanation_source"] = "llm"
                 logger.info("reasoning_agent done run_id=%s source=llm", run_id)
                 return state
             logger.warning(
@@ -613,6 +666,7 @@ def reasoning_node(state: GraphState, settings: Settings | None = None) -> Graph
                 run_id,
             )
     state["explanation_report"] = deterministic_report
+    state["explanation_source"] = "deterministic_fallback"
     logger.info(
         "reasoning_agent done run_id=%s source=deterministic_fallback report_chars=%d",
         run_id,

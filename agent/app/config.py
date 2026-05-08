@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     # not inside the logs connector/parser, and cannot create decisions directly.
     log_llm_enabled: bool = True
     log_sample_limit: int = 20
+    log_llm_model: Optional[str] = None
+    log_llm_max_output_tokens: int = 512
 
     # Namespace filters for local/dev clusters. Empty include means "all allowed
     # namespaces"; excludes remove Kubernetes/platform namespaces by default.
@@ -76,6 +78,8 @@ class Settings(BaseSettings):
         "gcp_claude",
     ] = "agent_platform_gemini"
     llm_model: str = "gemini-2.5-flash"
+    llm_timeout_sec: float = 20.0
+    llm_max_output_tokens: int = 2500
     openai_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434/v1"
     gcp_project_id: Optional[str] = None

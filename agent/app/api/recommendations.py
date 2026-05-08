@@ -98,6 +98,7 @@ def recommend(
         "critiques": [],
         "final_plan": [],
         "log_analysis": {},
+        "explanation_source": "",
         "explanation_report": "",
     }
     out = graph.invoke(state)
@@ -118,5 +119,7 @@ def recommend(
         recommendations=out.get("recommendations", []),
         critiques=out.get("critiques", []),
         plan=out.get("final_plan", []),
+        log_analysis=out.get("log_analysis", {}),
+        explanation_source=out.get("explanation_source", ""),
         explanation_report=out.get("explanation_report", ""),
     )
