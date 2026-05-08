@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from agent.app.connectors.kubernetes.topology_graph_builder import build_topology_graph, topology_graph_data_quality
+
 
 def _numeric_signals(signals: Dict[str, Any]) -> Dict[str, float]:
     out: Dict[str, float] = {}
@@ -11,6 +13,22 @@ def _numeric_signals(signals: Dict[str, Any]) -> Dict[str, float]:
         if isinstance(value, (int, float, bool)):
             out[key] = float(value)
     return out
+
+
+def _refresh_topology_graph(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    topology = dict(snapshot.get("topology") or {})
+    data_quality = dict(snapshot.get("data_quality") or {})
+    graph = build_topology_graph(snapshot.get("services") or [], topology, data_quality)
+    topology["graph"] = graph
+    snapshot["topology"] = topology
+    data_quality.update(
+        topology_graph_data_quality(
+            graph,
+            missing_labels=int(data_quality.get("pods_without_app_label") or data_quality.get("topology_missing_labels") or 0),
+        )
+    )
+    snapshot["data_quality"] = data_quality
+    return snapshot
 
 
 def snapshot_with_logs(base_snapshot: Dict[str, Any] | None, logs: Dict[str, Any]) -> Dict[str, Any]:
@@ -42,6 +60,8 @@ def snapshot_with_logs(base_snapshot: Dict[str, Any] | None, logs: Dict[str, Any
                 "namespace": (service_details.get(service) or {}).get("namespace"),
                 "cpu": 0.0,
                 "memory": 0.0,
+                "cpu_usage_cores": None,
+                "memory_usage_bytes": None,
                 "replicas": 0,
                 "available_replicas": None,
                 "unavailable_replicas": None,
@@ -49,7 +69,7 @@ def snapshot_with_logs(base_snapshot: Dict[str, Any] | None, logs: Dict[str, Any
             }
             for service in sorted(services)
         ]
-    return snapshot
+    return _refresh_topology_graph(snapshot)
 
 
 def snapshot_with_kubernetes(
@@ -61,5 +81,7 @@ def snapshot_with_kubernetes(
     logs = (base_snapshot or {}).get("logs")
     if isinstance(logs, dict) and logs:
         return snapshot_with_logs(snapshot, logs)
+    if not ((snapshot.get("topology") or {}).get("graph")):
+        return _refresh_topology_graph(snapshot)
     return snapshot
 

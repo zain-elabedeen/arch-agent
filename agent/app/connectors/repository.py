@@ -279,7 +279,7 @@ def _empty_snapshot() -> Dict[str, Any]:
     return {
         "services": [],
         "signals": {},
-        "topology": {"services": [], "edges": [], "service_details": {}},
+        "topology": {"services": [], "edges": [], "service_details": {}, "graph": {"nodes": [], "edges": [], "meta": {}}},
         "data_quality": {"orchestrated": True},
     }
 
@@ -463,6 +463,7 @@ def load_run_as_raw_state(
         services=topo_services,
         edges=[TopologyEdge.model_validate(e) for e in edges],
         service_details=service_details,
+        graph=((snapshot.get("topology") or {}).get("graph") or {}),
     ).model_dump(by_alias=True)
 
     raw_logs = snapshot.get("logs") if isinstance(snapshot.get("logs"), dict) else {}

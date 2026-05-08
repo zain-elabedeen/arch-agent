@@ -156,6 +156,83 @@ class SnapshotDataQuality(BaseModel):
     pods_without_app_label: int = 0
     topology_edges_inferred: int = 0
     topology_confidence: str = "low"
+    topology_nodes_without_metrics: int = 0
+    topology_edges_low_confidence: int = 0
+    topology_external_nodes: int = 0
+    topology_missing_labels: int = 0
+
+
+class TopologyGraphMeta(BaseModel):
+    """Graph-level rendering and data-quality metadata."""
+
+    model_config = ConfigDict(extra="allow")
+
+    run_id: Optional[str] = None
+    generated_at: Optional[str] = None
+    node_count: int = 0
+    edge_count: int = 0
+    topology_confidence: str = "low"
+    data_sources: List[str] = Field(default_factory=list)
+
+
+class TopologyNode(BaseModel):
+    """UI-ready topology graph node."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    name: str
+    display_name: Optional[str] = None
+    kind: str = "workload"
+    platform: str = "kubernetes"
+    namespace: Optional[str] = None
+    resource_name: Optional[str] = None
+    workload_kind: Optional[str] = None
+    status: str = "unknown"
+    severity: str = "none"
+    replicas: Optional[int] = None
+    available_replicas: Optional[int] = None
+    unavailable_replicas: Optional[int] = None
+    restarts: Optional[int] = None
+    cpu_utilization: Optional[float] = None
+    memory_utilization: Optional[float] = None
+    cpu_usage_cores: Optional[float] = None
+    memory_usage_bytes: Optional[float] = None
+    request_count: Optional[float] = None
+    error_rate: Optional[float] = None
+    request_latency_p95_ms: Optional[float] = None
+    smell_count: int = 0
+    recommendation_count: int = 0
+    labels: Dict[str, Any] = Field(default_factory=dict)
+    data_sources: List[str] = Field(default_factory=list)
+    is_external: bool = False
+
+
+class TopologyGraphEdge(BaseModel):
+    """UI-ready topology graph edge with confidence and evidence."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    id: str
+    from_node: str = Field(alias="from")
+    to_node: str = Field(alias="to")
+    type: str = "unknown"
+    direction: str = "outbound"
+    status: str = "unknown"
+    confidence: float = 0.0
+    inferred_from: List[str] = Field(default_factory=list)
+    evidence: List[str] = Field(default_factory=list)
+    protocol: Optional[str] = None
+    port: Optional[int] = None
+    data_sources: List[str] = Field(default_factory=list)
+
+
+class TopologyGraph(BaseModel):
+    """UI-ready topology graph payload stored inside the canonical snapshot."""
+
+    nodes: List[TopologyNode] = Field(default_factory=list)
+    edges: List[TopologyGraphEdge] = Field(default_factory=list)
+    meta: TopologyGraphMeta = Field(default_factory=TopologyGraphMeta)
 
 
 class TopologyEdge(BaseModel):
@@ -167,6 +244,8 @@ class TopologyEdge(BaseModel):
     to_service: str = Field(alias="to")
     type: str  # e.g. "http", "db", "queue"
     inferred_from: Optional[str] = None
+    confidence: Optional[float] = None
+    evidence: List[str] = Field(default_factory=list)
 
 
 class ServiceTopology(BaseModel):
@@ -179,6 +258,7 @@ class ServiceTopology(BaseModel):
     service_details: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
     critical_stores: List[str] = Field(default_factory=list)
     critical_queues: List[str] = Field(default_factory=list)
+    graph: TopologyGraph = Field(default_factory=TopologyGraph)
 
 
 class ClusterSnapshot(BaseModel):
@@ -248,6 +328,14 @@ def recommendation_request_has_inline_payload(req: RecommendationRequest) -> boo
     if req.signals:
         return True
     return bool(req.topology.services or req.topology.edges or req.logs)
+
+
+class TopologyResponse(BaseModel):
+    """GET /v1/topology response backed by the persisted snapshot JSONB."""
+
+    snapshot_run_id: str
+    graph: TopologyGraph = Field(default_factory=TopologyGraph)
+    data_quality: Dict[str, Any] = Field(default_factory=dict)
 
 
 class RecommendationResponse(BaseModel):

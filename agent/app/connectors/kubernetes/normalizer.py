@@ -8,10 +8,11 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Set, Tuple
 
-from kubernetes.client import V1Deployment, V1Pod, V1Service
+from kubernetes.client import V1ConfigMap, V1Deployment, V1Pod, V1Secret, V1Service
 
 from agent.app.connectors.kubernetes.kube_labels import app_name_for_labels, app_name_for_pod
 from agent.app.connectors.kubernetes.topology_builder import build_topology
+from agent.app.connectors.kubernetes.topology_graph_builder import build_topology_graph, topology_graph_data_quality
 
 DEFAULT_EXCLUDED_NAMESPACES = frozenset(
     {"kube-system", "kube-public", "kube-node-lease", "kubernetes-dashboard"}
@@ -190,6 +191,8 @@ def normalize(
     services: List[V1Service],
     pod_metrics: List[Dict[str, Any]],
     hpas: List[Any],
+    config_maps: List[V1ConfigMap] | None = None,
+    secrets: List[V1Secret] | None = None,
     include_namespaces: Iterable[str] | None = None,
     exclude_namespaces: Iterable[str] | None = DEFAULT_EXCLUDED_NAMESPACES,
 ) -> Dict[str, Any]:
@@ -204,6 +207,8 @@ def normalize(
     pods, pods_excluded = _filter_by_namespace(pods, include_ns, exclude_ns)
     deployments, _ = _filter_by_namespace(deployments, include_ns, exclude_ns)
     services, _ = _filter_by_namespace(services, include_ns, exclude_ns)
+    config_maps, _ = _filter_by_namespace(config_maps or [], include_ns, exclude_ns)
+    secrets, _ = _filter_by_namespace(secrets or [], include_ns, exclude_ns)
     hpas, _ = _filter_by_namespace(hpas, include_ns, exclude_ns)
     pod_metrics = [
         m for m in pod_metrics if _namespace_allowed(_metric_namespace(m), include_ns, exclude_ns)
@@ -284,7 +289,7 @@ def normalize(
         )
 
     app_names: Set[str] = set(by_app.keys())
-    topology = build_topology(pods, services, app_names)
+    topology = build_topology(pods, services, app_names, config_maps=config_maps, secrets=secrets)
     topology["service_details"] = {
         str(s["name"]): {
             "namespace": s.get("namespace"),
@@ -294,6 +299,8 @@ def normalize(
             "restarts": int(s.get("restarts") or 0),
             "cpu": s.get("cpu"),
             "memory": s.get("memory"),
+            "cpu_usage_cores": s.get("cpu_usage_cores"),
+            "memory_usage_bytes": s.get("memory_usage_bytes"),
         }
         for s in services_out
     }
@@ -337,7 +344,7 @@ def normalize(
         signals["hpa_scaling_pressure"] = hpa_desired_replicas / max(1.0, float(hpa_current_replicas))
 
     services_with_metrics = sum(1 for s in services_out if s.get("cpu_usage_cores") is not None or s.get("memory_usage_bytes") is not None)
-    edge_count = len(topology.get("edges") or [])
+    edge_count = len(topology.get("edges") or []) + len(topology.get("external_edges") or [])
     data_quality = {
         "metrics_server_available": bool(pod_metrics),
         "services_with_metrics": services_with_metrics,
@@ -348,5 +355,7 @@ def normalize(
         "topology_edges_inferred": edge_count,
         "topology_confidence": "medium" if edge_count else "low",
     }
+    topology["graph"] = build_topology_graph(services_out, topology, data_quality)
+    data_quality.update(topology_graph_data_quality(topology["graph"], missing_labels=pods_without_app_label))
 
     return {"services": services_out, "signals": signals, "topology": topology, "data_quality": data_quality}

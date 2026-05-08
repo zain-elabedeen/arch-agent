@@ -40,6 +40,8 @@ def _normalize_collected(c, settings):
         c.services,
         c.pod_metrics,
         c.hpas,
+        config_maps=c.config_maps,
+        secrets=c.secrets,
         include_namespaces=_namespace_csv(settings.k8s_include_namespaces),
         exclude_namespaces=_namespace_csv(settings.k8s_exclude_namespaces),
     )

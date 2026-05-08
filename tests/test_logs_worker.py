@@ -42,6 +42,10 @@ def test_logs_worker_merges_log_signals_into_existing_snapshot():
     assert out["signals"]["request_latency_p95_ms"] == 200.0
     assert out["logs"]["data_quality"]["logs_enabled"] is True
     assert out["topology"]["service_details"]["api"]["log_summary"]["timeout_count"] == 1.0
+    node = out["topology"]["graph"]["nodes"][0]
+    assert node["name"] == "api"
+    assert node["data_sources"] == ["kubernetes", "logs"]
+    assert node["request_count"] == 21.0
 
 
 def test_logs_worker_can_create_logs_only_snapshot_for_new_source_data():
@@ -58,6 +62,7 @@ def test_logs_worker_can_create_logs_only_snapshot_for_new_source_data():
     assert out["topology"]["services"] == ["api"]
     assert out["services"][0]["name"] == "api"
     assert out["services"][0]["replicas"] == 0
+    assert out["topology"]["graph"]["nodes"][0]["data_sources"] == ["kubernetes", "logs"]
 
 
 def test_kubernetes_snapshot_merge_preserves_existing_logs():
@@ -85,3 +90,4 @@ def test_kubernetes_snapshot_merge_preserves_existing_logs():
     assert out["signals"]["cpu_utilization"] == 0.4
     assert out["signals"]["timeout_count"] == 1.0
     assert out["topology"]["service_details"]["api"]["log_summary"]["timeout_count"] == 1.0
+    assert out["topology"]["graph"]["nodes"][0]["data_sources"] == ["kubernetes", "logs"]
