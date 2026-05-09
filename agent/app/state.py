@@ -271,24 +271,40 @@ class ClusterSnapshot(BaseModel):
     data_quality: SnapshotDataQuality = Field(default_factory=SnapshotDataQuality)
 
 
+class AnalysisScope(BaseModel):
+    """Stable target scope for smell, recommendation, critique, and plan cards."""
+
+    kind: str = "cluster"
+    id: str = "cluster"
+    name: str = "Cluster"
+    label: str = "Cluster"
+    namespace: Optional[str] = None
+    node_id: Optional[str] = None
+
+
 class Smell(BaseModel):
     """API projection of a smell dict from ``smell_rules.detect_smells``."""
 
+    id: Optional[str] = None
     type: str
     severity: Impact = "medium"
     confidence: float = 0.8
     evidence: Dict[str, float | str] = Field(default_factory=dict)
+    scope: Optional[AnalysisScope] = None
 
 
 class Recommendation(BaseModel):
     """One ranked architecture move proposed by the recommendation agent."""
 
+    id: Optional[str] = None
     pattern: str
     solution: str
     impact: Impact
     effort: Effort
     priority: int = 99
     reason: str = ""
+    scope: Optional[AnalysisScope] = None
+    source_smells: List[str] = Field(default_factory=list)
 
 
 class Critique(BaseModel):
@@ -298,16 +314,30 @@ class Critique(BaseModel):
     level: str  # "warning" | "blocker"
     message: str
     evidence: Dict[str, float | str] = Field(default_factory=dict)
+    scope: Optional[AnalysisScope] = None
 
 
 class PlanStep(BaseModel):
     """Single ordered step in the planner output (1-based indexing in ``title`` for MVP)."""
 
+    id: Optional[str] = None
     title: str
     description: str
     impact: Impact
     effort: Effort
     depends_on: List[int] = Field(default_factory=list)
+    scope: Optional[AnalysisScope] = None
+    recommendation_id: Optional[str] = None
+
+
+class ScopedAnalysis(BaseModel):
+    """Grouped analysis cards for one affected workload, service, cluster, or system scope."""
+
+    scope: AnalysisScope
+    smells: List[Smell] = Field(default_factory=list)
+    recommendations: List[Recommendation] = Field(default_factory=list)
+    critiques: List[Critique] = Field(default_factory=list)
+    plan: List[PlanStep] = Field(default_factory=list)
 
 
 class RecommendationRequest(BaseModel):
@@ -346,6 +376,7 @@ class RecommendationResponse(BaseModel):
     recommendations: List[Recommendation]
     critiques: List[Critique]
     plan: List[PlanStep]
+    scoped_analysis: List[ScopedAnalysis] = Field(default_factory=list)
     log_analysis: Dict[str, Any] = Field(default_factory=dict)
     explanation_source: str = ""
     explanation_report: str = ""
@@ -371,6 +402,7 @@ class GraphState(TypedDict, total=False):
     recommendations: List[Recommendation]
     critiques: List[Critique]
     final_plan: List[PlanStep]
+    scoped_analysis: List[ScopedAnalysis]
     log_analysis: Dict[str, Any]
     explanation_source: str
     explanation_report: str

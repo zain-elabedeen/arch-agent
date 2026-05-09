@@ -238,7 +238,7 @@ Common variables:
 | `ARCHAGENT_LLM_MAX_OUTPUT_TOKENS` | Max output tokens for explanation LLM. Default: `2500` |
 | `ARCHAGENT_OPENAI_API_KEY` | OpenAI API key when using OpenAI |
 | `ARCHAGENT_OLLAMA_BASE_URL` | Ollama OpenAI-compatible base URL |
-| `ARCHAGENT_GCP_PROJECT_ID` | GCP project ID for Agent Platform providers |
+| `GOOGLE_CLOUD_PROJECT` | GCP project ID for Agent Platform providers |
 | `ARCHAGENT_GCP_LOCATION` | Agent Platform region, multi-region, or `global` endpoint |
 | `ARCHAGENT_GCP_GENAI_API_VERSION` | Google Gen AI SDK API version. Default: `v1` |
 
@@ -253,7 +253,7 @@ ARCHAGENT_LLM_PROVIDER=agent_platform_gemini
 ARCHAGENT_LLM_MODEL=gemini-2.5-flash
 ARCHAGENT_LLM_TIMEOUT_SEC=20
 ARCHAGENT_LLM_MAX_OUTPUT_TOKENS=2500
-ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
 ARCHAGENT_GCP_LOCATION=global
 ARCHAGENT_GCP_GENAI_API_VERSION=v1
 ```
@@ -271,7 +271,7 @@ Claude on Google Cloud Agent Platform:
 ```bash
 ARCHAGENT_LLM_PROVIDER=agent_platform_claude
 ARCHAGENT_LLM_MODEL=claude-sonnet-4-5@20250929
-ARCHAGENT_GCP_PROJECT_ID=your-gcp-project-id
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
 ARCHAGENT_GCP_LOCATION=global
 ```
 

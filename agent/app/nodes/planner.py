@@ -7,9 +7,11 @@ replace ``build_plan`` later without changing the graph shape.
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import List
 
 from agent.app.logging_utils import get_logger
+from agent.app.services.analysis_scoping import build_scoped_analysis, scope_key
 from agent.app.state import GraphState, PlanStep, Recommendation
 
 logger = get_logger("agent.nodes.planner")
@@ -44,16 +46,32 @@ def build_plan(recommendations: List[Recommendation]) -> List[PlanStep]:
     )
     steps: List[PlanStep] = []
     for idx, rec in enumerate(ordered, start=1):
+        rec_id = rec.id or f"{rec.pattern}:{idx}"
         steps.append(
             PlanStep(
+                id=f"{rec_id}:step-{idx}",
                 title=f"Step {idx}: Apply {rec.pattern}",
                 description=f"{rec.solution} (Why: {rec.reason or 'Mapped from detected smell'})",
                 impact=rec.impact,
                 effort=rec.effort,
                 depends_on=[],
+                scope=rec.scope,
+                recommendation_id=rec.id,
             )
         )
     return steps
+
+
+def build_scoped_plan(recommendations: List[Recommendation]) -> List[PlanStep]:
+    """Build independent plan sequences per analysis scope."""
+    groups: "OrderedDict[str, List[Recommendation]]" = OrderedDict()
+    for rec in recommendations:
+        groups.setdefault(scope_key(rec.scope), []).append(rec)
+
+    plan: List[PlanStep] = []
+    for group in groups.values():
+        plan.extend(build_plan(group))
+    return plan
 
 
 def planner_node(state: GraphState) -> GraphState:
@@ -64,7 +82,17 @@ def planner_node(state: GraphState) -> GraphState:
         run_id,
         len(state.get("recommendations", [])),
     )
-    state["final_plan"] = build_plan(state.get("recommendations", []))
+    recommendations = state.get("recommendations", [])
+    if any(getattr(rec, "scope", None) for rec in recommendations):
+        state["final_plan"] = build_scoped_plan(recommendations)
+    else:
+        state["final_plan"] = build_plan(recommendations)
+    state["scoped_analysis"] = build_scoped_analysis(
+        state.get("smells", []),
+        state.get("recommendations", []),
+        state.get("critiques", []),
+        state.get("final_plan", []),
+    )
     logger.info(
         "planner_agent done run_id=%s plan_steps=%d first_step=%s",
         run_id,
@@ -72,4 +100,3 @@ def planner_node(state: GraphState) -> GraphState:
         state.get("final_plan", [None])[0].title if state.get("final_plan") else "none",
     )
     return state
-

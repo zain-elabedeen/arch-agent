@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, TypeVar
 from agent.app.config import Settings
 from agent.app.logging_utils import get_logger
 from agent.app.models.pattern import ArchitecturePattern
+from agent.app.services.analysis_scoping import scope_label
 from agent.app.state import Critique, GraphState, Recommendation
 
 logger = get_logger("agent.nodes.reasoning")
@@ -146,6 +147,25 @@ def _service_context_lines(state: GraphState, affected_services: List[str]) -> L
     return lines
 
 
+def _scoped_analysis_lines(scoped_analysis: List[Any]) -> List[str]:
+    """Summarize the scope groups that drive UI cards."""
+    if not scoped_analysis:
+        return ["- No scoped analysis groups were produced for this run."]
+
+    lines: List[str] = []
+    for group in scoped_analysis:
+        scope = getattr(group, "scope", None) or (group.get("scope") if isinstance(group, dict) else None)
+        smells = getattr(group, "smells", None) or (group.get("smells", []) if isinstance(group, dict) else [])
+        recs = getattr(group, "recommendations", None) or (
+            group.get("recommendations", []) if isinstance(group, dict) else []
+        )
+        plan = getattr(group, "plan", None) or (group.get("plan", []) if isinstance(group, dict) else [])
+        lines.append(
+            f"- `{scope_label(scope)}`: {len(smells)} smell(s), {len(recs)} recommendation(s), {len(plan)} plan step(s)."
+        )
+    return lines
+
+
 def _story_lines(smells: List[dict], recommendations: List[Recommendation], affected_services: List[str]) -> List[str]:
     if not smells:
         return [
@@ -206,6 +226,8 @@ def _recommendation_lines(
     lines: List[str] = []
     service_text = f"`{', '.join(affected_services)}`" if affected_services else "the affected service(s)"
     for r in recommendations:
+        rec_scope = getattr(r, "scope", None)
+        scoped_service_text = f"`{scope_label(rec_scope)}`" if rec_scope else service_text
         pattern = patterns_by_id.get(r.pattern)
         summary = pattern.summary if pattern else "This pattern is mapped from the detected smell."
         tradeoffs = "; ".join(pattern.tradeoffs[:3]) if pattern and pattern.tradeoffs else "No catalog tradeoffs were attached."
@@ -213,7 +235,7 @@ def _recommendation_lines(
         lines.extend(
             [
                 f"#### `{r.pattern}`",
-                f"- Affected service scope: {service_text}.",
+                f"- Affected service scope: {scoped_service_text}.",
                 f"- Why it matched: {r.reason or 'Mapped from detected smell.'}",
                 f"- Architecture explanation: {summary}",
                 f"- How to think about the change: this pattern changes the service shape, not just a metric. The goal is to reduce the structural weakness that produced the smell.",
@@ -284,7 +306,9 @@ def _plan_lines(recommendations: List[Recommendation], plan_steps: List[Any]) ->
     for idx, step in enumerate(plan_steps, start=1):
         title = getattr(step, "title", None) or step.get("title", f"Step {idx}")
         description = getattr(step, "description", None) or step.get("description", "")
-        lines.append(f"- {title}: {description}")
+        step_scope = getattr(step, "scope", None) or (step.get("scope") if isinstance(step, dict) else None)
+        scope_text = f" [{scope_label(step_scope)}]" if step_scope else ""
+        lines.append(f"- {title}{scope_text}: {description}")
     rec_ids = [r.pattern for r in recommendations]
     if "horizontal_scaling" in rec_ids and "load_balancing" in rec_ids:
         lines.extend(
@@ -325,6 +349,7 @@ def build_explanation_report(state: GraphState) -> str:
     critiques = state.get("critiques", [])
     plan_steps = state.get("final_plan", [])
     log_analysis = state.get("log_analysis", {}) or {}
+    scoped_analysis = state.get("scoped_analysis", []) or []
     patterns_by_id = _pattern_lookup(state.get("patterns", []) or [])
     affected_services = _affected_services_from_smells(smells)
 
@@ -341,6 +366,9 @@ def build_explanation_report(state: GraphState) -> str:
         "",
         "### Affected Services",
         *_service_context_lines(state, affected_services),
+        "",
+        "### Scoped Findings",
+        *_scoped_analysis_lines(scoped_analysis),
         "",
         "### Detected Smells",
         *_smell_lines(smells),

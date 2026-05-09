@@ -1,5 +1,5 @@
-from agent.app.nodes.planner import build_plan
-from agent.app.state import Recommendation
+from agent.app.nodes.planner import build_plan, build_scoped_plan
+from agent.app.state import AnalysisScope, Recommendation
 
 
 def test_planner_prioritizes_high_impact_low_effort_first_then_medium_medium():
@@ -35,3 +35,54 @@ def test_planner_prioritizes_high_impact_low_effort_first_then_medium_medium():
     assert plan[0].title.lower().endswith("load_balancing")
     assert plan[1].title.lower().endswith("api_gateway")
     assert plan[2].title.lower().endswith("service_decomposition")
+
+
+def test_scoped_plan_resets_step_numbers_per_scope():
+    api_scope = AnalysisScope(
+        kind="workload",
+        id="k8s:default:workload:api",
+        name="api",
+        label="api / default",
+        namespace="default",
+        node_id="k8s:default:workload:api",
+    )
+    worker_scope = AnalysisScope(
+        kind="workload",
+        id="k8s:default:workload:worker",
+        name="worker",
+        label="worker / default",
+        namespace="default",
+        node_id="k8s:default:workload:worker",
+    )
+
+    plan = build_scoped_plan(
+        [
+            Recommendation(
+                id="api:horizontal_scaling",
+                pattern="horizontal_scaling",
+                solution="Add more instances",
+                impact="high",
+                effort="medium",
+                priority=1,
+                reason="Remove single-replica risk",
+                scope=api_scope,
+            ),
+            Recommendation(
+                id="worker:horizontal_scaling",
+                pattern="horizontal_scaling",
+                solution="Add more instances",
+                impact="high",
+                effort="medium",
+                priority=1,
+                reason="Remove single-replica risk",
+                scope=worker_scope,
+            ),
+        ]
+    )
+
+    assert [step.title for step in plan] == ["Step 1: Apply horizontal_scaling", "Step 1: Apply horizontal_scaling"]
+    assert [step.scope.node_id for step in plan] == [
+        "k8s:default:workload:api",
+        "k8s:default:workload:worker",
+    ]
+    assert [step.recommendation_id for step in plan] == ["api:horizontal_scaling", "worker:horizontal_scaling"]

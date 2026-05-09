@@ -40,6 +40,7 @@ def test_snapshot_mode_uses_fetch(monkeypatch: pytest.MonkeyPatch, client: TestC
     assert r.status_code == 200
     data = r.json()
     assert "recommendations" in data
+    assert "scoped_analysis" in data
     assert isinstance(data.get("explanation_report"), str)
 
 
@@ -85,6 +86,9 @@ def test_snapshot_mode_uses_log_derived_signals(monkeypatch: pytest.MonkeyPatch,
     assert "timeout_pressure" in smell_types
     timeout = next(smell for smell in data["smells"] if smell["type"] == "timeout_pressure")
     assert timeout["evidence"]["services"] == "test-api"
+    assert timeout["scope"]["name"] == "test-api"
+    assert data["scoped_analysis"]
+    assert data["scoped_analysis"][0]["scope"]["node_id"] == "k8s:default:workload:test-api"
 
 
 def test_snapshot_mode_missing_dsn(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:

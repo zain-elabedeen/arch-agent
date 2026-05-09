@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from agent.app.logging_utils import get_logger
 from agent.app.models.pattern import ArchitecturePattern, PatternConstraint
+from agent.app.services.analysis_scoping import cluster_scope, copy_scope
 from agent.app.state import Critique, GraphState
 
 logger = get_logger("agent.nodes.critic")
@@ -340,6 +341,30 @@ def critique_patterns(state: GraphState, patterns: List[ArchitecturePattern]) ->
     return critiques
 
 
+def _scope_critiques_to_recommendations(state: GraphState, critiques: List[Critique]) -> List[Critique]:
+    """Attach critique warnings to every scoped recommendation using the same pattern."""
+    recommendations = state.get("recommendations", []) or []
+    recs_by_pattern: Dict[str, List[Any]] = {}
+    for rec in recommendations:
+        pattern_id = getattr(rec, "pattern", None) or (rec.get("pattern") if isinstance(rec, dict) else None)
+        if pattern_id:
+            recs_by_pattern.setdefault(str(pattern_id), []).append(rec)
+
+    if not recs_by_pattern:
+        return critiques
+
+    scoped: List[Critique] = []
+    for critique in critiques:
+        matches = recs_by_pattern.get(critique.pattern_id) or []
+        if not matches:
+            scoped.append(critique.model_copy(update={"scope": cluster_scope()}))
+            continue
+        for rec in matches:
+            rec_scope = getattr(rec, "scope", None) or (rec.get("scope") if isinstance(rec, dict) else None)
+            scoped.append(critique.model_copy(update={"scope": copy_scope(rec_scope)}))
+    return scoped
+
+
 def critic_node(state: GraphState) -> GraphState:
     """
     Critic node: apply avoid_when constraints to surface risks/warnings.
@@ -353,11 +378,10 @@ def critic_node(state: GraphState) -> GraphState:
         len(state.get("recommendations", [])),
     )
     # Critiques are generated automatically from pattern constraints + runtime state.
-    state["critiques"] = critique_patterns(state, state.get("patterns", []))
+    state["critiques"] = _scope_critiques_to_recommendations(state, critique_patterns(state, state.get("patterns", [])))
     logger.info(
         "critic_agent done run_id=%s critiques=%d",
         run_id,
         len(state.get("critiques", [])),
     )
     return state
-
