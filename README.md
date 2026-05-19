@@ -1,54 +1,31 @@
 # ArchAgent
 
-[![Tests](https://github.com/zain-elabedeen/archi-agent/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zain-elabedeen/archi-agent/actions/workflows/ci.yml)
+[![Tests](https://github.com/zain-elabedeen/arch-agent/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zain-elabedeen/arch-agent/actions/workflows/ci.yml)
 
-ArchAgent is a cloud infrastructure intelligence system. It uses runtime data and service topology to detect infratsruture smells,  create architeture recommendations, risk critiques and execution plans
+ArchAgent is a cloud infrastructure intelligence system. It turns Kubernetes runtime snapshots, topology, logs, curated architecture patterns, and optional architecture knowledge into infrastructure smells, architecture recommendations, risk critiques, execution plans, and human-readable reports.
 
-## What It Is
+ArchAgent is a reasoning layer on top of infrastructure data. It does not apply changes to a cluster.
 
-ArchAgent is a reasoning layer on top of infrastructure data.
+## What It Does
 
-It consumes:
+ArchAgent consumes:
 
-- Workload state
+- Kubernetes workload state
 - normalized runtime signals
-- inferred or annotated service topology
+- inferred service topology
+- normalized pod log summaries
 - curated architecture patterns
 - optional architecture knowledge from books, markdown, PDFs, and text files
 
-It produces:
+ArchAgent produces:
 
-- infrastructure smells
-- architecture recommendations
-- constraint and risk warnings
-- a prioritized plan
-- a human-readable report
-
-ArchAgent sits above infrastructure signals  (Prometheus, Datadog, Grafana, or Kubernetes..)  and converts them into architecture reasoning.
-
-## Current Scope
-
-The current implementation focuses on data foundation and the architecture reasoning pipeline (MVP).
-
-- FastAPI API layer
-- LangGraph multi-agent pipeline
-- Kubernetes connector
-- Prometheus connector
-- log ingestion
-- metrics snapshot normalization
-- snapshot payload persistence (Postgresql)
-- recommendation API
-- smell detection engine
-- smell-to-pattern retrieval
-- pattern-based critic rules
-- prioritized planner
-- explanation report (LLM)
-
-Next:
-
-- incidents data
-- security intelligence
-- long-term trend analysis
+- deterministic infrastructure smells
+- architecture recommendations mapped from detected smells
+- constraint and risk critiques
+- prioritized plan steps
+- scoped analysis grouped by affected service/workload
+- a topology graph for the dashboard
+- an explanation report, optionally enriched by an LLM and RAG citations
 
 ## Architecture
 
@@ -79,73 +56,52 @@ Recommendation API
     ->
 LangGraph Pipeline
     ->
-Architecture Knowledge Retrieval (optional RAG)
-    ->
-Smells + Recommendations + Critiques + Plan + Optional Log Analysis + Report
+Smells + Recommendations + Critiques + Plan + Optional Log Analysis + Optional RAG + Report
 ```
 
-The ingestion orchestrator creates one run per polling cycle, then calls each
-configured connector worker with the same `run_id`. The Kubernetes worker owns
-workload, metric, and topology data. The logs worker owns log ingestion and
-merges normalized log signals into that same run.
+The ingestion orchestrator creates one run per polling cycle, then calls each configured connector worker with the same `run_id`. The Kubernetes worker owns workload, metric, and topology data. The logs worker owns log ingestion and merges normalized log signals into that same run.
 
-The API reads the latest snapshot, builds `GraphState`, and runs the reasoning graph.
+The API reads the latest stored snapshot, builds `GraphState`, and runs the reasoning graph.
 
-## API Layout
-
-Endpoints:
+## API
 
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/healthz` | Liveness check |
-| `POST` | `/v1/recommendations` | Run the recommendation pipeline |
+| `GET` | `/v1/topology` | Return the latest persisted topology graph |
+| `GET` | `/v1/topology?run_id=<uuid>` | Return topology for a specific snapshot run |
+| `POST` | `/v1/recommendations` | Run the recommendation pipeline on the latest persisted snapshot |
+| `POST` | `/v1/recommendations?run_id=<uuid>` | Run the recommendation pipeline on a specific snapshot run |
 
-### Recommendation Modes
-
-Snapshot mode:
+Run recommendations for the latest snapshot:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/v1/recommendations | jq .
 ```
 
-Snapshot mode uses the latest stored Kubernetes snapshot. To analyze a specific run:
+Run recommendations for a specific snapshot:
 
 ```bash
 curl -s -X POST "http://127.0.0.1:8000/v1/recommendations?run_id=<uuid>" | jq .
 ```
 
-Inline mode:
+Fetch the latest topology graph:
 
 ```bash
-curl -s http://127.0.0.1:8000/v1/recommendations \
-  -H 'content-type: application/json' \
-  -d '{
-    "signals": {
-      "request_latency_p95_ms": 850,
-      "db_latency_p95_ms": 420,
-      "error_rate": 0.03,
-      "cpu_utilization": 0.92,
-      "queue_backlog": 12000
-    },
-    "topology": {
-      "services": ["api", "worker", "db"],
-      "edges": [
-        {"from": "api", "to": "db", "type": "db"},
-        {"from": "api", "to": "worker", "type": "queue"}
-      ],
-      "critical_stores": ["db"],
-      "critical_queues": ["jobs"]
-    }
-  }' | jq .
+curl -s http://127.0.0.1:8000/v1/topology | jq .
 ```
 
-Response shape:
+Recommendation response fields:
 
 - `snapshot_run_id`
 - `smells`
 - `recommendations`
 - `critiques`
 - `plan`
+- `scoped_analysis`
+- `log_analysis`
+- `knowledge_context`
+- `explanation_source`
 - `explanation_report`
 
 ## Quickstart
@@ -158,17 +114,19 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Run the API:
+Start the API:
 
 ```bash
 uvicorn agent.app.main:app --reload
 ```
 
-Validate:
+Validate the API:
 
 ```bash
 curl -s http://127.0.0.1:8000/healthz
 ```
+
+Snapshot-backed recommendation and topology endpoints require Postgres data. Use Docker Compose and the ingestion worker for the normal local flow.
 
 ## Docker Compose
 
@@ -178,7 +136,7 @@ Create an env file:
 cp .env.example .env
 ```
 
-Start API and Postgres:
+Start Postgres with pgvector and the API:
 
 ```bash
 docker compose up --build
@@ -190,7 +148,7 @@ Start the ingestion orchestrator in a separate terminal:
 docker compose --profile workers up --build ingestion-worker
 ```
 
-The individual connector workers are still available for debugging:
+Run individual connector workers for debugging:
 
 ```bash
 docker compose --profile connection-workers up --build k8s-worker logs-worker
@@ -201,8 +159,8 @@ Services:
 - API: `http://127.0.0.1:8000`
 - Postgres: `localhost:5432`
 - Ingestion orchestrator: `python -m agent.app.connectors.orchestrator`
-- Standalone Kubernetes worker: `python -m agent.app.connectors.kubernetes.worker`
-- Standalone logs worker: `python -m agent.app.connectors.logs.worker`
+- Kubernetes worker: `python -m agent.app.connectors.kubernetes.worker`
+- Logs worker: `python -m agent.app.connectors.logs.worker`
 
 The orchestrator and Kubernetes-backed workers read kube credentials from `${HOME}/.kube/config`, mounted into the container at `/kube/config`.
 
@@ -214,53 +172,53 @@ For in-cluster deployment, remove the kubeconfig mount and rely on in-cluster se
 
 Environment variables use the `ARCHAGENT_` prefix. See `agent/app/config.py` and `.env.example`.
 
-Common variables:
-
 | Variable | Purpose |
 | --- | --- |
 | `ARCHAGENT_ENVIRONMENT` | Runtime environment: `dev`, `test`, or `prod` |
-| `ARCHAGENT_PATTERN_STORE` | Pattern store mode. Current implementation: `filesystem` |
-| `ARCHAGENT_PATTERNS_PATH` | Path to JSON architecture patterns |
-| `ARCHAGENT_RAG_ENABLED` | Enable architecture knowledge retrieval for explanation enrichment |
-| `ARCHAGENT_RAG_KNOWLEDGE_PATH` | Directory of `.md`, `.txt`, and `.pdf` knowledge sources |
-| `ARCHAGENT_RAG_EMBEDDING_PROVIDER` | Embedding provider: `openai` for production, `hash` for offline tests/dev |
-| `ARCHAGENT_RAG_TOP_K` | Number of knowledge chunks to retrieve for a recommendation run |
 | `ARCHAGENT_POSTGRES_DSN` | Postgres connection string |
 | `ARCHAGENT_K8S_AUTO_MIGRATE` | Auto-create/update connector tables |
-| `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
 | `ARCHAGENT_INGESTION_CONNECTORS` | Comma-separated connectors for the orchestrator. Default: `kubernetes,logs` |
-| `ARCHAGENT_K8S_INCLUDE_NAMESPACES` | Optional comma-separated allow-list of namespaces |
-| `ARCHAGENT_K8S_EXCLUDE_NAMESPACES` | Comma-separated namespace exclude list |
+| `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
+| `ARCHAGENT_K8S_INCLUDE_NAMESPACES` | Optional namespace allow-list |
+| `ARCHAGENT_K8S_EXCLUDE_NAMESPACES` | Namespace exclude list |
 | `ARCHAGENT_LOGS_ENABLED` | Enable the logs connector worker |
 | `ARCHAGENT_LOG_WINDOW_GRACE_SEC` | Extra seconds added to the log read window |
 | `ARCHAGENT_LOG_TAIL_LINES` | Max log lines read per pod/container per poll |
-| `ARCHAGENT_LOG_LLM_ENABLED` | Enable the experimental log-analysis agent in the recommendation pipeline |
-| `ARCHAGENT_LOG_SAMPLE_LIMIT` | Max normalized log samples sent to the optional log-analysis agent |
-| `ARCHAGENT_LOG_LLM_MODEL` | Optional model override for log classification. Defaults to `ARCHAGENT_LLM_MODEL` |
-| `ARCHAGENT_LOG_LLM_MAX_OUTPUT_TOKENS` | Max output tokens for log classification. Default: `512` |
-| `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM pass |
+| `ARCHAGENT_PATTERN_STORE` | Pattern store mode. Current implementation: `filesystem` |
+| `ARCHAGENT_PATTERNS_PATH` | Path to JSON architecture patterns |
+| `ARCHAGENT_LOG_LLM_ENABLED` | Enable experimental log-analysis LLM sidecar |
+| `ARCHAGENT_LOG_SAMPLE_LIMIT` | Max normalized log samples sent to the log-analysis LLM |
+| `ARCHAGENT_LOG_LLM_MODEL` | Optional model override for log classification |
+| `ARCHAGENT_LOG_LLM_MAX_OUTPUT_TOKENS` | Max output tokens for log classification |
+| `ARCHAGENT_LLM_REASONING_ENABLED` | Enable optional explanation-only LLM report rewrite |
 | `ARCHAGENT_LLM_PROVIDER` | `agent_platform_gemini`, `openai`, `ollama`, or `agent_platform_claude` |
 | `ARCHAGENT_LLM_MODEL` | Model used for explanation polish |
-| `ARCHAGENT_LLM_TIMEOUT_SEC` | Max seconds to wait for explanation LLM before deterministic fallback. Default: `20` |
-| `ARCHAGENT_LLM_MAX_OUTPUT_TOKENS` | Max output tokens for explanation LLM. Default: `2500` |
-| `ARCHAGENT_OPENAI_API_KEY` | OpenAI API key when using OpenAI |
+| `ARCHAGENT_LLM_TIMEOUT_SEC` | Max seconds to wait before deterministic fallback |
+| `ARCHAGENT_LLM_MAX_OUTPUT_TOKENS` | Max output tokens for explanation LLM |
+| `ARCHAGENT_OPENAI_API_KEY` | OpenAI key for OpenAI LLM or RAG embeddings |
 | `ARCHAGENT_OLLAMA_BASE_URL` | Ollama OpenAI-compatible base URL |
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID for Agent Platform providers |
 | `ARCHAGENT_GCP_LOCATION` | Agent Platform region, multi-region, or `global` endpoint |
-| `ARCHAGENT_GCP_GENAI_API_VERSION` | Google Gen AI SDK API version. Default: `v1` |
+| `ARCHAGENT_GCP_GENAI_API_VERSION` | Google Gen AI SDK API version |
 
 ## Architecture Knowledge RAG
 
-ArchAgent can enrich its explanation report with cited architecture knowledge. This is intentionally explanation-only in the current version: deterministic smell detection and pattern recommendation still decide the actual findings and plan.
+RAG is optional and disabled by default. It enriches the explanation report with cited architecture knowledge, but it does not create smells, recommendations, critiques, or plan steps.
 
-Add knowledge files:
+Supported source files:
+
+- `.md`
+- `.txt`
+- `.pdf`
+
+Add source files:
 
 ```bash
 mkdir -p agent/app/knowledge_sources
 cp /path/to/architecture-notes.md agent/app/knowledge_sources/
 ```
 
-Index the files into Postgres with pgvector:
+Index knowledge into Postgres/pgvector:
 
 ```bash
 python -m agent.app.knowledge.ingest --path agent/app/knowledge_sources
@@ -269,16 +227,30 @@ python -m agent.app.knowledge.ingest --path agent/app/knowledge_sources
 Enable retrieval:
 
 ```bash
-export ARCHAGENT_RAG_ENABLED=true
-export ARCHAGENT_RAG_EMBEDDING_PROVIDER=openai
-export ARCHAGENT_OPENAI_API_KEY=...
+ARCHAGENT_RAG_ENABLED=true
+ARCHAGENT_RAG_EMBEDDING_PROVIDER=openai
+ARCHAGENT_OPENAI_API_KEY=...
 ```
 
-Supported source files are `.md`, `.txt`, and `.pdf`. Retrieved chunks appear in the API response as `knowledge_context` and in the report under `Relevant Architecture Knowledge`.
+RAG settings:
 
-### LLM Providers
+| Variable | Purpose |
+| --- | --- |
+| `ARCHAGENT_RAG_ENABLED` | Enable knowledge retrieval during recommendation runs |
+| `ARCHAGENT_RAG_STORE` | Knowledge store. Current implementation: `postgres` |
+| `ARCHAGENT_RAG_KNOWLEDGE_PATH` | Source directory mounted for ingestion |
+| `ARCHAGENT_RAG_EMBEDDING_PROVIDER` | `openai` for production, `hash` for offline tests/dev |
+| `ARCHAGENT_RAG_EMBEDDING_MODEL` | Embedding model, default `text-embedding-3-small` |
+| `ARCHAGENT_RAG_EMBEDDING_DIMENSIONS` | Embedding vector size |
+| `ARCHAGENT_RAG_TOP_K` | Number of chunks retrieved per recommendation run |
+| `ARCHAGENT_RAG_CHUNK_TOKENS` | Approximate chunk size |
+| `ARCHAGENT_RAG_CHUNK_OVERLAP_TOKENS` | Approximate overlap between chunks |
 
-The LLM is used by the explanation-only reasoning pass. Gemini on GCP is the default provider.
+Retrieved chunks appear in the API response as `knowledge_context` and in the report under `Relevant Architecture Knowledge`.
+
+## LLM Providers
+
+LLMs are optional and used only for explanation/log sidecar enrichment. Deterministic agents remain responsible for smells, recommendations, critiques, and plans.
 
 Gemini on Google Cloud Agent Platform:
 
@@ -309,148 +281,87 @@ GOOGLE_CLOUD_PROJECT=your-gcp-project-id
 ARCHAGENT_GCP_LOCATION=global
 ```
 
-Agent Platform providers use Google Application Default Credentials. For local development, run:
+Agent Platform providers use Google Application Default Credentials. For local development:
 
 ```bash
 gcloud auth application-default login
-```
-
-For service accounts, set `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json` in the process environment. The GCP project must have the Agent Platform API enabled, `roles/aiplatform.user` or equivalent permissions, and access to the selected Gemini or Claude model in the configured location.
-
-For Docker Compose local development, the API container mounts `${HOME}/.config/gcloud` into `/root/.config/gcloud`, so `gcloud auth application-default login` on the host is enough for Application Default Credentials. Recreate the API container after authenticating.
-
-If you use end-user ADC credentials, set a quota project to avoid quota/billing ambiguity:
-
-```bash
 gcloud auth application-default set-quota-project your-gcp-project-id
 ```
 
-For quota-sensitive local testing, prefer one LLM call per request: enable `ARCHAGENT_LOG_LLM_ENABLED=true` and set `ARCHAGENT_LLM_REASONING_ENABLED=false`, or keep log analysis disabled while testing the report LLM. Keep `ARCHAGENT_LLM_TIMEOUT_SEC` lower than the HTTP client timeout so the API can return the deterministic report instead of hanging on a slow model response.
+For service accounts, set `GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json`. The project must have the Agent Platform API enabled, suitable AI Platform permissions, and access to the selected Gemini or Claude model in the configured location.
 
-## Tests
-
-Use the repo virtualenv so LangGraph and the app dependencies are available:
-
-```bash
-PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
-```
-
-## Repository Structure
-
-```text
-agent/app/
-  api/                    FastAPI route handlers
-  connectors/orchestrator.py Creates runs and calls connector workers
-  connectors/repository.py Shared connector snapshot persistence
-  connectors/kubernetes/  Kubernetes collection, normalization, topology
-  connectors/logs/        Source-neutral log ingestion, Kubernetes log source, normalization
-  models/                 Domain models
-  nodes/                  LangGraph node implementations
-  patterns/               Architecture pattern catalog
-  services/               Smell rules, pattern loading, snapshot loading
-  graph.py                LangGraph orchestration
-  main.py                 FastAPI app construction
-  state.py                API and graph state models
-```
+For Docker Compose local development, the API container mounts `${HOME}/.config/gcloud` into `/root/.config/gcloud`, so host ADC credentials are available inside the container after recreation.
 
 ## Reasoning Pipeline
 
 The LangGraph pipeline is linear:
 
 ```text
-Telemetry -> Smell Detection -> Pattern Retrieval -> Recommendation -> Critic -> Planner -> Log Analysis -> Reasoning
+Telemetry
+  -> Smell Detection
+  -> Pattern Retrieval
+  -> Recommendation
+  -> Critic
+  -> Planner
+  -> Log Analysis
+  -> Knowledge Retrieval
+  -> Reasoning
 ```
 
 Node responsibilities:
 
-- `telemetry`: normalize raw inputs into canonical signal and topology keys
+- `telemetry`: normalize snapshot signals and topology into canonical state
 - `smells`: detect deterministic architecture smells
-- `retrieval`: map smell types to architecture patterns
+- `retrieval`: map smell types to curated architecture patterns
 - `recommend`: rank mapped patterns into recommendation records
 - `critic`: apply `avoid_when` constraints and structured pattern rules
 - `planner`: turn recommendations into ordered plan steps
-- `log_analysis`: optionally classify sampled normalized log events with Gemini for report context only
+- `log_analysis`: optionally classify sampled normalized logs for report context only
+- `knowledge`: optionally retrieve architecture knowledge chunks for report context only
 - `reasoning`: produce the final explanation report
 
 The graph is defined in `agent/app/graph.py`. Node implementations live in `agent/app/nodes/`.
 
 ## Data Foundation
 
-The ingestion orchestrator lives at `agent/app/connectors/orchestrator.py`.
-It creates a shared run, then calls configured connector workers with that
-`run_id`. This is the mechanism that will later read integration settings and
-decide which connections should contribute to each run.
+The ingestion orchestrator lives at `agent/app/connectors/orchestrator.py`. It creates a shared run, then calls configured connector workers with that `run_id`.
 
-The Kubernetes connector lives under `agent/app/connectors/kubernetes/`.
-
-Main files:
+The Kubernetes connector lives under `agent/app/connectors/kubernetes/`:
 
 - `client.py`: builds Kubernetes API clients
 - `collector.py`: pulls pods, deployments, services, pod metrics, and HPAs
 - `normalizer.py`: converts Kubernetes objects into the canonical snapshot shape
 - `topology_builder.py`: infers service dependencies
-- `worker.py`: runs the collect -> normalize -> persist loop
+- `topology_graph_builder.py`: builds the UI-ready topology graph
+- `worker.py`: runs the collect, normalize, and persist loop
 
-The logs connector lives under `agent/app/connectors/logs/`.
-
-Main files:
+The logs connector lives under `agent/app/connectors/logs/`:
 
 - `models.py`: source-neutral raw log batch model
 - `kubernetes_source.py`: reads Kubernetes pod logs into raw batches
 - `normalizer.py`: parses JSON/plain-text logs and aggregates log signals
-- `worker.py`: runs the log collect -> normalize -> merge snapshot loop
+- `worker.py`: runs the log collect, normalize, and merge loop
 
 Shared connector persistence lives in `agent/app/connectors/repository.py`.
 
-The optional Gemini log classifier is an agent node, not part of the connector:
-`agent/app/nodes/log_analysis.py`. It reads normalized `logs.events` from the
-snapshot during the recommendation pipeline, stores sidecar context in
-`GraphState.log_analysis`, and cannot create smells or recommendations.
-
-The current snapshot model includes:
-
-- per-service CPU and memory utilization
-- raw CPU cores and memory bytes when metrics-server is available
-- desired, available, and unavailable replicas
-- restart totals
-- HPA scaling pressure
-- queue backlog from HPA external metrics when available
-- topology edges
-- normalized log summaries when the logs worker is enabled
-- data quality hints
-
-By default, ingestion excludes Kubernetes/platform namespaces so
-control-plane components do not drive application architecture recommendations:
-
-- `kube-system`
-- `kube-public`
-- `kube-node-lease`
-- `kubernetes-dashboard`
-
-Use `ARCHAGENT_K8S_INCLUDE_NAMESPACES` and `ARCHAGENT_K8S_EXCLUDE_NAMESPACES`
-to scope the worker to the namespaces you want analyzed.
-
-Canonical snapshot types are defined in `agent/app/state.py`:
-
-- `ServiceSnapshot`
-- `SnapshotSignals`
-- `SnapshotDataQuality`
-- `ClusterSnapshot`
+The optional log classifier is an agent node, not part of the connector. It reads normalized `logs.events` during the recommendation pipeline, stores sidecar context in `GraphState.log_analysis`, and cannot create smells or recommendations.
 
 ## Storage Model
 
-Postgres is the current persistence layer.
+Postgres is the persistence layer. Docker Compose uses `pgvector/pgvector:pg16` so architecture knowledge embeddings can be stored next to snapshots.
 
-ArchAgent uses relational tables for stable query paths and JSONB for evolving snapshot shape:
+Core tables:
 
 - `runs`: one row per ingestion snapshot, with full `snapshot` JSONB
 - `runs.data_quality`: collector completeness and inference quality JSONB
 - `service_metrics`: queryable per-service metrics, namespace, replica health, and restart counts
 - `signals`: stable signal columns plus extensible `payload` JSONB
-- `topology`: dependency edges per run, including inference provenance when known
-- `log_events`: queryable normalized log event summaries for the latest log-enabled snapshots
+- `topology`: dependency edges per run
+- `log_events`: queryable normalized log event summaries
+- `architecture_knowledge_sources`: indexed RAG source metadata
+- `architecture_knowledge_chunks`: indexed RAG chunks and embeddings
 
-JSONB is preferred over a separate NoSQL datastore at this stage because snapshots still need run history, relational joins, and simple operational deployment.
+JSONB is used for evolving snapshot shape while relational tables keep common query paths simple.
 
 ## Topology Inference
 
@@ -476,18 +387,9 @@ metadata:
     archagent.io/depends-on: "db:postgres,queue:worker"
 ```
 
-Supported dependency prefixes include:
+Supported dependency prefixes include `db`, `database`, `queue`, `broker`, `stream`, `http`, `grpc`, and `api`.
 
-- `db`
-- `database`
-- `queue`
-- `broker`
-- `stream`
-- `http`
-- `grpc`
-- `api`
-
-## Smells
+## Smells And Patterns
 
 Smells are deterministic labels for architecture stress. They trigger pattern retrieval; they are not fixes by themselves.
 
@@ -509,10 +411,6 @@ Current smell examples:
 - `probe_instability`
 - `crash_loop_signal`
 
-Kubernetes-native smells make the system useful before Prometheus ingestion exists. Log-backed smells use normalized request, error, timeout, dependency, probe, and crash signals from the logs connector.
-
-## Patterns
-
 Architecture patterns live in `agent/app/patterns/` as JSON files validated by `ArchitecturePattern` in `agent/app/models/pattern.py`.
 
 Each pattern can define:
@@ -526,3 +424,28 @@ Each pattern can define:
 - `confidence`
 
 Smell-to-pattern routing is explicit in `agent/app/services/pattern_loader.py` through `SMELL_TO_PATTERN_MAP`.
+
+## Tests
+
+Use the repo virtualenv so LangGraph and the app dependencies are available:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q
+```
+
+## Repository Structure
+
+```text
+agent/app/
+  api/                    FastAPI route handlers
+  connectors/             Ingestion orchestration, persistence, Kubernetes and logs connectors
+  knowledge/              RAG extraction, chunking, embeddings, repository, retrieval, ingestion CLI
+  knowledge_sources/      Local source directory for architecture knowledge files
+  models/                 Domain models
+  nodes/                  LangGraph node implementations
+  patterns/               Curated architecture pattern catalog
+  services/               Smell rules, pattern loading, snapshot/topology loading
+  graph.py                LangGraph orchestration
+  main.py                 FastAPI app construction
+  state.py                API and graph state models
+```
