@@ -99,6 +99,7 @@ def recommend(
         "final_plan": [],
         "scoped_analysis": [],
         "log_analysis": {},
+        "knowledge_context": [],
         "explanation_source": "",
         "explanation_report": "",
     }
@@ -122,6 +123,7 @@ def recommend(
         plan=out.get("final_plan", []),
         scoped_analysis=out.get("scoped_analysis", []),
         log_analysis=out.get("log_analysis", {}),
+        knowledge_context=out.get("knowledge_context", []),
         explanation_source=out.get("explanation_source", ""),
         explanation_report=out.get("explanation_report", ""),
     )

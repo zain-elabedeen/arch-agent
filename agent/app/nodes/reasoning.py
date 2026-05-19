@@ -295,6 +295,38 @@ def _log_analysis_lines(log_analysis: Dict[str, Any]) -> List[str]:
     return lines
 
 
+def _knowledge_context_lines(state: GraphState) -> List[str]:
+    """Format retrieved architecture knowledge as cited explanation context."""
+    chunks = state.get("knowledge_context", []) or []
+    if not chunks:
+        return ["- No architecture knowledge passages were retrieved for this run."]
+
+    lines = [
+        "- The following passages were retrieved from the architecture knowledge index as supporting review context.",
+        "- These citations enrich the explanation only; smells and recommendations still come from deterministic agents.",
+    ]
+    for index, chunk in enumerate(chunks[:5], start=1):
+        title = _chunk_value(chunk, "source_title", "Unknown source")
+        section = _chunk_value(chunk, "section")
+        page = _chunk_value(chunk, "page")
+        content = _chunk_value(chunk, "content", "")
+        location_parts = []
+        if section:
+            location_parts.append(str(section))
+        if page:
+            location_parts.append(f"p. {page}")
+        location = f" ({', '.join(location_parts)})" if location_parts else ""
+        excerpt = " ".join(str(content).split())[:420]
+        lines.append(f"- [{index}] `{title}`{location}: {excerpt}")
+    return lines
+
+
+def _chunk_value(chunk: Any, key: str, default: Any = None) -> Any:
+    if isinstance(chunk, dict):
+        return chunk.get(key, default)
+    return getattr(chunk, key, default)
+
+
 def _plan_lines(recommendations: List[Recommendation], plan_steps: List[Any]) -> List[str]:
     """Explain plan ordering without changing planner decisions."""
     if not plan_steps:
@@ -382,6 +414,9 @@ def build_explanation_report(state: GraphState) -> str:
         "### Experimental Log Analysis",
         *_log_analysis_lines(log_analysis),
         "",
+        "### Relevant Architecture Knowledge",
+        *_knowledge_context_lines(state),
+        "",
         "### Execution Plan Rationale",
         *_plan_lines(recommendations, plan_steps),
         "",
@@ -411,6 +446,7 @@ def _build_llm_prompt(state: GraphState) -> str:
         "- Write for an engineer who is learning from the system interaction.\n"
         "- Explain which service or services are affected when the report names them.\n"
         "- Explain the recommended patterns as a systems and cloud architecture expert would: what problem they solve, how they change the architecture, why they help, and what tradeoffs they introduce.\n"
+        "- When the report includes Relevant Architecture Knowledge, use it only as cited supporting context and preserve the source titles/citations.\n"
         "- Make the cause -> pattern -> tradeoff -> next step reasoning easy to follow.\n"
         "- Use clear markdown with short paragraphs and bullets. Be comprehensive, but keep the report concise enough for an API response; target 1,200-1,800 words unless the input is unusually large.\n\n"
         "Rewrite the following report as a clearer, more educational architecture explanation:\n\n"
