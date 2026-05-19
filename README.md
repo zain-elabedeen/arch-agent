@@ -14,6 +14,7 @@ It consumes:
 - normalized runtime signals
 - inferred or annotated service topology
 - curated architecture patterns
+- optional architecture knowledge from books, markdown, PDFs, and text files
 
 It produces:
 
@@ -77,6 +78,8 @@ Postgres Snapshots
 Recommendation API
     ->
 LangGraph Pipeline
+    ->
+Architecture Knowledge Retrieval (optional RAG)
     ->
 Smells + Recommendations + Critiques + Plan + Optional Log Analysis + Report
 ```
@@ -218,6 +221,10 @@ Common variables:
 | `ARCHAGENT_ENVIRONMENT` | Runtime environment: `dev`, `test`, or `prod` |
 | `ARCHAGENT_PATTERN_STORE` | Pattern store mode. Current implementation: `filesystem` |
 | `ARCHAGENT_PATTERNS_PATH` | Path to JSON architecture patterns |
+| `ARCHAGENT_RAG_ENABLED` | Enable architecture knowledge retrieval for explanation enrichment |
+| `ARCHAGENT_RAG_KNOWLEDGE_PATH` | Directory of `.md`, `.txt`, and `.pdf` knowledge sources |
+| `ARCHAGENT_RAG_EMBEDDING_PROVIDER` | Embedding provider: `openai` for production, `hash` for offline tests/dev |
+| `ARCHAGENT_RAG_TOP_K` | Number of knowledge chunks to retrieve for a recommendation run |
 | `ARCHAGENT_POSTGRES_DSN` | Postgres connection string |
 | `ARCHAGENT_K8S_AUTO_MIGRATE` | Auto-create/update connector tables |
 | `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
@@ -241,6 +248,33 @@ Common variables:
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID for Agent Platform providers |
 | `ARCHAGENT_GCP_LOCATION` | Agent Platform region, multi-region, or `global` endpoint |
 | `ARCHAGENT_GCP_GENAI_API_VERSION` | Google Gen AI SDK API version. Default: `v1` |
+
+## Architecture Knowledge RAG
+
+ArchAgent can enrich its explanation report with cited architecture knowledge. This is intentionally explanation-only in the current version: deterministic smell detection and pattern recommendation still decide the actual findings and plan.
+
+Add knowledge files:
+
+```bash
+mkdir -p agent/app/knowledge_sources
+cp /path/to/architecture-notes.md agent/app/knowledge_sources/
+```
+
+Index the files into Postgres with pgvector:
+
+```bash
+python -m agent.app.knowledge.ingest --path agent/app/knowledge_sources
+```
+
+Enable retrieval:
+
+```bash
+export ARCHAGENT_RAG_ENABLED=true
+export ARCHAGENT_RAG_EMBEDDING_PROVIDER=openai
+export ARCHAGENT_OPENAI_API_KEY=...
+```
+
+Supported source files are `.md`, `.txt`, and `.pdf`. Retrieved chunks appear in the API response as `knowledge_context` and in the report under `Relevant Architecture Knowledge`.
 
 ### LLM Providers
 
