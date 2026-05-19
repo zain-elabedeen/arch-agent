@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_DB: archagent
@@ -34,6 +34,7 @@ services:
       - "8000:8000"
     volumes:
       - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
+      - ./agent/app/knowledge_sources:/app/agent/app/knowledge_sources
     command: ["uvicorn", "agent.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
   ingestion-worker:
@@ -56,6 +57,7 @@ services:
     volumes:
       - ${HOME}/.kube/config:/kube/config:ro
       - ${HOME}/.minikube:/Users/zain/.minikube:ro
+      - ./agent/app/knowledge_sources:/app/agent/app/knowledge_sources
 
   k8s-worker:
     profiles: ["connection-workers"]
