@@ -65,6 +65,18 @@ class Settings(BaseSettings):
     # Pattern catalog location for filesystem mode
     patterns_path: str = "agent/app/patterns"
 
+    # Architecture knowledge RAG. Disabled by default so deterministic MVP
+    # behavior is unchanged until a knowledge index is configured.
+    rag_enabled: bool = False
+    rag_store: Literal["postgres"] = "postgres"
+    rag_knowledge_path: str = "agent/app/knowledge_sources"
+    rag_embedding_provider: Literal["openai", "hash"] = "openai"
+    rag_embedding_model: str = "text-embedding-3-small"
+    rag_embedding_dimensions: int = 1536
+    rag_top_k: int = 5
+    rag_chunk_tokens: int = 1000
+    rag_chunk_overlap_tokens: int = 180
+
     # Reasoning layer (explanation-only) LLM configuration.
     llm_reasoning_enabled: bool = True
     llm_provider: Literal[

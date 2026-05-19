@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
 from agent.app.models.pattern import ArchitecturePattern, Effort, Impact
+from agent.app.knowledge.models import KnowledgeChunkReference
 
 
 class TelemetrySignals(BaseModel):
@@ -378,6 +379,7 @@ class RecommendationResponse(BaseModel):
     plan: List[PlanStep]
     scoped_analysis: List[ScopedAnalysis] = Field(default_factory=list)
     log_analysis: Dict[str, Any] = Field(default_factory=dict)
+    knowledge_context: List[KnowledgeChunkReference] = Field(default_factory=list)
     explanation_source: str = ""
     explanation_report: str = ""
 
@@ -404,5 +406,6 @@ class GraphState(TypedDict, total=False):
     final_plan: List[PlanStep]
     scoped_analysis: List[ScopedAnalysis]
     log_analysis: Dict[str, Any]
+    knowledge_context: List[KnowledgeChunkReference]
     explanation_source: str
     explanation_report: str

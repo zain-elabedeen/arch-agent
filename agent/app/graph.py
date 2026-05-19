@@ -14,6 +14,7 @@ from langgraph.graph import END, StateGraph
 from agent.app.config import Settings
 from agent.app.logging_utils import get_logger
 from agent.app.nodes.critic import critic_node
+from agent.app.nodes.knowledge import knowledge_retrieval_node
 from agent.app.nodes.log_analysis import log_analysis_node
 from agent.app.nodes.planner import planner_node
 from agent.app.nodes.recommend import recommend_node
@@ -48,6 +49,7 @@ def build_graph(settings: Settings):
     g.add_node("critic_agent", critic_node)
     g.add_node("planner_agent", planner_node)
     g.add_node("log_analysis_agent", lambda s: log_analysis_node(s, settings))
+    g.add_node("knowledge_retrieval_agent", lambda s: knowledge_retrieval_node(s, settings))
     g.add_node("reasoning_agent", lambda s: reasoning_node(s, settings))
 
     g.set_entry_point("telemetry_agent")
@@ -57,9 +59,10 @@ def build_graph(settings: Settings):
     g.add_edge("recommendation_agent", "critic_agent")
     g.add_edge("critic_agent", "planner_agent")
     g.add_edge("planner_agent", "log_analysis_agent")
-    g.add_edge("log_analysis_agent", "reasoning_agent")
+    g.add_edge("log_analysis_agent", "knowledge_retrieval_agent")
+    g.add_edge("knowledge_retrieval_agent", "reasoning_agent")
     g.add_edge("reasoning_agent", END)
 
     compiled = g.compile()
-    logger.info("pipeline graph compiled nodes=%s", ["telemetry_agent", "smell_agent", "retrieval_agent", "recommendation_agent", "critic_agent", "planner_agent", "log_analysis_agent", "reasoning_agent"])
+    logger.info("pipeline graph compiled nodes=%s", ["telemetry_agent", "smell_agent", "retrieval_agent", "recommendation_agent", "critic_agent", "planner_agent", "log_analysis_agent", "knowledge_retrieval_agent", "reasoning_agent"])
     return compiled
