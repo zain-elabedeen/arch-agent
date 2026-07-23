@@ -45,17 +45,30 @@ def retrieve_knowledge_context(
     embedding_provider: EmbeddingProvider | None = None,
 ) -> list[KnowledgeChunkReference]:
     """Retrieve relevant architecture knowledge chunks for a pipeline state."""
-    if not settings.rag_enabled:
-        return []
-
     try:
-        provider = embedding_provider or get_embedding_provider(settings)
-        repo = repository or get_knowledge_repository(settings)
         query = build_knowledge_query(state)
         if not query.strip():
             return []
-        embedding = provider.embed_query(query)
-        results = repo.search(embedding, top_k=settings.rag_top_k)
+        results: list[KnowledgeChunkReference] = []
+        if settings.rag_enabled:
+            provider = embedding_provider or get_embedding_provider(settings)
+            repo = repository or get_knowledge_repository(settings)
+            embedding = provider.embed_query(query)
+            results.extend(repo.search(embedding, top_k=settings.rag_top_k))
+        organization_id = str(state.get("organization_id") or "")
+        if organization_id:
+            from agent.app.product.store import get_product_store
+
+            results.extend(get_product_store().search_knowledge(organization_id, query, top_k=8))
+        deduplicated: list[KnowledgeChunkReference] = []
+        seen: set[tuple[str, str]] = set()
+        for result in sorted(results, key=lambda item: item.score, reverse=True):
+            key = (result.source_title, result.content)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduplicated.append(result)
+        results = deduplicated[:8]
         logger.info(
             "knowledge retrieval done run_id=%s results=%d",
             state.get("run_id", "n/a"),
@@ -70,4 +83,3 @@ def retrieve_knowledge_context(
             str(exc),
         )
         return []
-

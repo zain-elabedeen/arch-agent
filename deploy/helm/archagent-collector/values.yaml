@@ -1,0 +1,37 @@
+image:
+  repository: europe-west1-docker.pkg.dev/your-project/archagent/collector
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+registration:
+  endpoint: https://ingest.archagent.de
+  token: ""
+
+credential:
+  storage: 16Mi
+
+collection:
+  includeNamespaces: []
+  excludeNamespaces:
+    - kube-system
+    - kube-public
+    - kube-node-lease
+    - kubernetes-dashboard
+  logsEnabled: false
+
+rbac:
+  # standard reads metadata cluster-wide; restricted reads only the release namespace.
+  profile: standard
+
+serviceAccount:
+  create: true
+  name: archagent-collector
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

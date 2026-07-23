@@ -21,7 +21,9 @@ from sqlalchemy import (
     Uuid,
     delete,
     desc,
+    func,
     insert,
+    inspect,
     select,
     text,
     update,
@@ -32,6 +34,7 @@ from sqlalchemy.engine import Connection
 from agent.app.state import ServiceTopology, TopologyEdge
 
 _SCHEMA_READY: set[str] = set()
+CONNECTOR_TABLE_NAMES = ("runs", "service_metrics", "signals", "topology", "log_events")
 
 metadata = MetaData()
 
@@ -40,6 +43,7 @@ runs_t = Table(
     metadata,
     Column("id", Uuid(as_uuid=True), primary_key=True),
     Column("created_at", DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP")),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")),
     Column("snapshot", JSONB, nullable=True),
     Column("data_quality", JSONB, nullable=True),
 )
@@ -58,6 +62,7 @@ service_metrics_t = Table(
     Column("available_replicas", Integer, nullable=True),
     Column("unavailable_replicas", Integer, nullable=True),
     Column("restarts", Integer, nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
 signals_t = Table(
@@ -72,6 +77,7 @@ signals_t = Table(
     Column("single_instance_service_count", Float, nullable=True),
     Column("hpa_scaling_pressure", Float, nullable=True),
     Column("payload", JSONB, nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
 topology_t = Table(
@@ -82,6 +88,7 @@ topology_t = Table(
     Column("target", String, nullable=False),
     Column("type", String, nullable=False),
     Column("inferred_from", String, nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
 log_events_t = Table(
@@ -98,105 +105,24 @@ log_events_t = Table(
     Column("is_error", Boolean, nullable=False),
     Column("count", Integer, nullable=False),
     Column("message_sample", String, nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
 
-def _ddl_statements() -> List[str]:
-    return [
-        """
-        CREATE TABLE IF NOT EXISTS runs (
-            id UUID PRIMARY KEY,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-            snapshot JSONB,
-            data_quality JSONB
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS service_metrics (
-            run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-            service_name TEXT NOT NULL,
-            namespace TEXT,
-            cpu DOUBLE PRECISION NOT NULL,
-            memory DOUBLE PRECISION NOT NULL,
-            cpu_usage_cores DOUBLE PRECISION,
-            memory_usage_bytes DOUBLE PRECISION,
-            replicas INTEGER NOT NULL,
-            available_replicas INTEGER,
-            unavailable_replicas INTEGER,
-            restarts INTEGER NOT NULL,
-            PRIMARY KEY (run_id, service_name)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS signals (
-            run_id UUID PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
-            cpu_utilization DOUBLE PRECISION,
-            memory_utilization DOUBLE PRECISION,
-            queue_backlog DOUBLE PRECISION,
-            pod_restart_total DOUBLE PRECISION,
-            unavailable_replicas DOUBLE PRECISION,
-            single_instance_service_count DOUBLE PRECISION,
-            hpa_scaling_pressure DOUBLE PRECISION,
-            payload JSONB
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS topology (
-            run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-            source TEXT NOT NULL,
-            target TEXT NOT NULL,
-            type TEXT NOT NULL,
-            inferred_from TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS log_events (
-            run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-            service_name TEXT NOT NULL,
-            namespace TEXT,
-            pod TEXT,
-            level TEXT,
-            category TEXT,
-            status_code INTEGER,
-            latency_ms DOUBLE PRECISION,
-            is_error BOOLEAN NOT NULL,
-            count INTEGER NOT NULL DEFAULT 1,
-            message_sample TEXT
-        )
-        """,
-        "CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs (created_at DESC)",
-        "CREATE INDEX IF NOT EXISTS idx_topology_run_id ON topology (run_id)",
-        "CREATE INDEX IF NOT EXISTS idx_log_events_run_id ON log_events (run_id)",
-        "ALTER TABLE runs ADD COLUMN IF NOT EXISTS snapshot JSONB",
-        "ALTER TABLE runs ADD COLUMN IF NOT EXISTS data_quality JSONB",
-        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS namespace TEXT",
-        "ALTER TABLE signals ADD COLUMN IF NOT EXISTS payload JSONB",
-        "ALTER TABLE signals ADD COLUMN IF NOT EXISTS pod_restart_total DOUBLE PRECISION",
-        "ALTER TABLE signals ADD COLUMN IF NOT EXISTS unavailable_replicas DOUBLE PRECISION",
-        "ALTER TABLE signals ADD COLUMN IF NOT EXISTS single_instance_service_count DOUBLE PRECISION",
-        "ALTER TABLE signals ADD COLUMN IF NOT EXISTS hpa_scaling_pressure DOUBLE PRECISION",
-        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS cpu_usage_cores DOUBLE PRECISION",
-        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS memory_usage_bytes DOUBLE PRECISION",
-        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS available_replicas INTEGER",
-        "ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS unavailable_replicas INTEGER",
-        "ALTER TABLE topology ADD COLUMN IF NOT EXISTS inferred_from TEXT",
-        "ALTER TABLE log_events ADD COLUMN IF NOT EXISTS pod TEXT",
-        "ALTER TABLE log_events ADD COLUMN IF NOT EXISTS status_code INTEGER",
-        "ALTER TABLE log_events ADD COLUMN IF NOT EXISTS latency_ms DOUBLE PRECISION",
-        "ALTER TABLE log_events ADD COLUMN IF NOT EXISTS count INTEGER DEFAULT 1",
-    ]
-
-
 def ensure_connector_schema(engine: Engine) -> None:
-    """Idempotent DDL for connector tables (PostgreSQL)."""
+    """Validate that Alembic-managed connector tables are present."""
     if engine.dialect.name != "postgresql":
         raise RuntimeError(f"Connector schema requires PostgreSQL; got dialect={engine.dialect.name}")
     key = str(engine.url)
     if key in _SCHEMA_READY:
         return
-    with engine.begin() as conn:
-        for stmt in _ddl_statements():
-            conn.execute(text(stmt))
+    inspector = inspect(engine)
+    missing = [table_name for table_name in CONNECTOR_TABLE_NAMES if not inspector.has_table(table_name)]
+    if missing:
+        raise RuntimeError(
+            "Connector schema is not migrated. Run `.venv/bin/alembic upgrade head`. "
+            f"Missing tables: {', '.join(missing)}"
+        )
     _SCHEMA_READY.add(key)
 
 
@@ -340,7 +266,11 @@ def load_latest_snapshot(conn: Connection) -> Tuple[uuid.UUID, Dict[str, Any]] |
 def replace_run_snapshot(conn: Connection, run_id: uuid.UUID, snapshot: Dict[str, Any]) -> None:
     """Replace one run snapshot and refresh all queryable child rows."""
     data_quality = snapshot.get("data_quality") or {}
-    conn.execute(update(runs_t).where(runs_t.c.id == run_id).values(snapshot=snapshot, data_quality=data_quality))
+    conn.execute(
+        update(runs_t)
+        .where(runs_t.c.id == run_id)
+        .values(snapshot=snapshot, data_quality=data_quality, updated_at=func.now())
+    )
     _delete_snapshot_children(conn, run_id)
     _insert_snapshot_children(conn, run_id, snapshot)
 

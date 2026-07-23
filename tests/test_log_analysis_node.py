@@ -83,6 +83,55 @@ def test_log_analysis_quota_errors_are_explicit():
     assert _llm_failure_payload(error, 133, 20)["ignored_reason"] == "llm_quota_exhausted"
 
 
+def test_log_analysis_agent_returns_gemini_analysis(monkeypatch):
+    from google import genai
+
+    class FakeResponse:
+        text = (
+            '{"category": "timeout", "suspected_component": "test-api", '
+            '"confidence": 0.9, "summary": "upstream timeout", "evidence_terms": ["timeout"]}'
+        )
+
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            assert kwargs["model"] == "gemini-test"
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            assert kwargs["vertexai"] is True
+            assert kwargs["project"] == "test-project"
+            assert kwargs["location"] == "global"
+            self.models = FakeModels()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(genai, "Client", FakeClient)
+
+    out = classify_log_samples(
+        [_event()],
+        Settings(
+            log_llm_enabled=True,
+            llm_provider="agent_platform_gemini",
+            llm_model="gemini-test",
+            gcp_project_id="test-project",
+        ),
+    )
+
+    assert out == {
+        "category": "timeout",
+        "suspected_component": "test-api",
+        "confidence": 0.9,
+        "summary": "upstream timeout",
+        "evidence_terms": ["timeout"],
+        "event_count": 1,
+        "sample_count": 1,
+        "analysis_source": "gemini",
+        "llm_model": "gemini-test",
+    }
+
+
 def test_log_analysis_parser_accepts_fenced_json():
     parsed = _parse_json_object("```json\n{\"category\": \"timeout\", \"ignored\": true}\n```")
     assert parsed == {"category": "timeout"}

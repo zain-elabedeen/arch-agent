@@ -157,8 +157,12 @@ def classify_log_samples(events: Iterable[LogEvent], settings: Settings) -> Dict
     try:
         from google import genai  # type: ignore[reportMissingImports]
         from google.genai.types import HttpOptions  # type: ignore[reportMissingImports]
-    except Exception:
-        logger.warning("log_analysis_agent unavailable: google-genai sdk missing")
+    except Exception as exc:
+        logger.warning(
+            "log_analysis_agent unavailable: google-genai sdk import failed error_type=%s message=%s",
+            exc.__class__.__name__,
+            exc,
+        )
         return {"disabled_reason": "google_genai_sdk_missing"}
 
     prompt = (

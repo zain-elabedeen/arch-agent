@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
-from kubernetes.client import ApiException, V1ConfigMap, V1Deployment, V1Pod, V1Secret, V1Service
+from kubernetes.client import ApiException, V1ConfigMap, V1Deployment, V1Pod, V1Service
 
 from agent.app.connectors.kubernetes.client import K8sApis, build_apis
 
@@ -21,7 +21,6 @@ class CollectedCluster:
     deployments: List[V1Deployment]
     services: List[V1Service]
     config_maps: List[V1ConfigMap]
-    secrets: List[V1Secret]
     pod_metrics: List[Dict[str, Any]]
     hpas: List[Any]
 
@@ -56,10 +55,6 @@ def collect(apis: K8sApis | None = None) -> CollectedCluster:
         config_maps = apis.core.list_config_map_for_all_namespaces(watch=False).items
     except ApiException:
         config_maps = []
-    try:
-        secrets = apis.core.list_secret_for_all_namespaces(watch=False).items
-    except ApiException:
-        secrets = []
     metrics = _list_pod_metrics(apis)
     try:
         hpas = apis.autoscaling.list_horizontal_pod_autoscaler_for_all_namespaces(watch=False).items
@@ -70,7 +65,6 @@ def collect(apis: K8sApis | None = None) -> CollectedCluster:
         deployments=deployments,
         services=services,
         config_maps=config_maps,
-        secrets=secrets,
         pod_metrics=metrics,
         hpas=hpas,
     )
@@ -85,5 +79,4 @@ def unpack(collected: CollectedCluster) -> Tuple[Any, ...]:
         collected.pod_metrics,
         collected.hpas,
         collected.config_maps,
-        collected.secrets,
     )

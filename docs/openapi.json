@@ -1,0 +1,5430 @@
+{
+  "components": {
+    "schemas": {
+      "AccountDetailsResponse": {
+        "properties": {
+          "analysis_runs": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisRunResponse"
+            },
+            "title": "Analysis Runs",
+            "type": "array"
+          },
+          "audit_events": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEventResponse"
+            },
+            "title": "Audit Events",
+            "type": "array"
+          },
+          "clusters": {
+            "title": "Clusters",
+            "type": "integer"
+          },
+          "clusters_detail": {
+            "items": {
+              "$ref": "#/components/schemas/ClusterDetailResponse"
+            },
+            "title": "Clusters Detail",
+            "type": "array"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "documents_detail": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentResponse"
+            },
+            "title": "Documents Detail",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/InvitationResponse"
+            },
+            "title": "Invitations",
+            "type": "array"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/OrganizationMembershipResponse"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "users": {
+            "title": "Users",
+            "type": "integer"
+          },
+          "workos_organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Organization Id"
+          },
+          "workos_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "users",
+          "clusters",
+          "documents"
+        ],
+        "title": "AccountDetailsResponse",
+        "type": "object"
+      },
+      "AccountSummaryResponse": {
+        "properties": {
+          "clusters": {
+            "title": "Clusters",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "users": {
+            "title": "Users",
+            "type": "integer"
+          },
+          "workos_organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Organization Id"
+          },
+          "workos_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "users",
+          "clusters",
+          "documents"
+        ],
+        "title": "AccountSummaryResponse",
+        "type": "object"
+      },
+      "AnalysisRunCreate": {
+        "properties": {
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Organization-owned cluster to analyze. Omit for organization-level runs.",
+            "title": "Cluster Id"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "description": "Opaque analysis input metadata persisted with the run.",
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "title": "AnalysisRunCreate",
+        "type": "object"
+      },
+      "AnalysisRunResponse": {
+        "properties": {
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by_user_id": {
+            "title": "Created By User Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "input_payload": {
+            "additionalProperties": true,
+            "title": "Input Payload",
+            "type": "object"
+          },
+          "knowledge_chunk_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Knowledge Chunk Ids",
+            "type": "array"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "result_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Payload"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "status",
+          "created_by_user_id"
+        ],
+        "title": "AnalysisRunResponse",
+        "type": "object"
+      },
+      "AnalysisScope": {
+        "description": "Stable target scope for smell, recommendation, critique, and plan cards.",
+        "properties": {
+          "id": {
+            "default": "cluster",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "default": "cluster",
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "default": "Cluster",
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "default": "Cluster",
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          }
+        },
+        "title": "AnalysisScope",
+        "type": "object"
+      },
+      "AuditEventResponse": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_type": {
+            "title": "Actor Type",
+            "type": "string"
+          },
+          "actor_user_id": {
+            "title": "Actor User Id",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "actor_user_id",
+          "actor_type",
+          "action",
+          "target_type",
+          "target_id"
+        ],
+        "title": "AuditEventResponse",
+        "type": "object"
+      },
+      "ClusterCreate": {
+        "properties": {
+          "environment": {
+            "default": "development",
+            "description": "Deployment environment label, for example development, staging, or production.",
+            "title": "Environment",
+            "type": "string"
+          },
+          "name": {
+            "description": "Human-readable cluster name shown in the product UI.",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ClusterCreate",
+        "type": "object"
+      },
+      "ClusterDetailResponse": {
+        "properties": {
+          "collector_status": {
+            "title": "Collector Status",
+            "type": "string"
+          },
+          "connection_mode": {
+            "title": "Connection Mode",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_heartbeat_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Heartbeat At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "namespaces": {
+            "items": {
+              "$ref": "#/components/schemas/NamespaceResponse"
+            },
+            "title": "Namespaces",
+            "type": "array"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "name",
+          "environment",
+          "connection_mode",
+          "collector_status"
+        ],
+        "title": "ClusterDetailResponse",
+        "type": "object"
+      },
+      "ClusterResponse": {
+        "properties": {
+          "collector_status": {
+            "title": "Collector Status",
+            "type": "string"
+          },
+          "connection_mode": {
+            "title": "Connection Mode",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_heartbeat_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Heartbeat At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "name",
+          "environment",
+          "connection_mode",
+          "collector_status"
+        ],
+        "title": "ClusterResponse",
+        "type": "object"
+      },
+      "CollectorCredentialRotationResponse": {
+        "properties": {
+          "credential": {
+            "title": "Credential",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential",
+          "expires_at"
+        ],
+        "title": "CollectorCredentialRotationResponse",
+        "type": "object"
+      },
+      "CollectorHeartbeatResponse": {
+        "properties": {
+          "heartbeat_id": {
+            "title": "Heartbeat Id",
+            "type": "string"
+          },
+          "recorded": {
+            "title": "Recorded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "heartbeat_id",
+          "recorded"
+        ],
+        "title": "CollectorHeartbeatResponse",
+        "type": "object"
+      },
+      "CollectorRegistrationResponse": {
+        "properties": {
+          "cluster_id": {
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "credential": {
+            "title": "Credential",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential",
+          "expires_at",
+          "organization_id",
+          "cluster_id"
+        ],
+        "title": "CollectorRegistrationResponse",
+        "type": "object"
+      },
+      "CollectorRegistrationTokenResponse": {
+        "properties": {
+          "cluster_id": {
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "registration_endpoint": {
+            "title": "Registration Endpoint",
+            "type": "string"
+          },
+          "registration_token": {
+            "description": "One-time token exchanged by the collector for a rotating credential.",
+            "title": "Registration Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cluster_id",
+          "registration_endpoint",
+          "registration_token"
+        ],
+        "title": "CollectorRegistrationTokenResponse",
+        "type": "object"
+      },
+      "CollectorSnapshotResponse": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "snapshot_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Run Id"
+          },
+          "stored": {
+            "title": "Stored",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "stored",
+          "accepted"
+        ],
+        "title": "CollectorSnapshotResponse",
+        "type": "object"
+      },
+      "Critique": {
+        "description": "Risk or constraint warning from the critic agent for a given pattern.",
+        "properties": {
+          "evidence": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Evidence",
+            "type": "object"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "pattern_id": {
+            "title": "Pattern Id",
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "pattern_id",
+          "level",
+          "message"
+        ],
+        "title": "Critique",
+        "type": "object"
+      },
+      "CsrfTokenResponse": {
+        "properties": {
+          "csrf_token": {
+            "description": "Signed double-submit CSRF token. Send it in x-archagent-csrf on unsafe requests.",
+            "title": "Csrf Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "csrf_token"
+        ],
+        "title": "CsrfTokenResponse",
+        "type": "object"
+      },
+      "DocumentResponse": {
+        "properties": {
+          "byte_size": {
+            "default": 0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "logical_document_id": {
+            "title": "Logical Document Id",
+            "type": "string"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "object_key": {
+            "title": "Object Key",
+            "type": "string"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By User Id"
+          },
+          "scope": {
+            "description": "Document scope: organization or global.",
+            "title": "Scope",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "uploaded_by_user_id": {
+            "title": "Uploaded By User Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "logical_document_id",
+          "version",
+          "scope",
+          "title",
+          "filename",
+          "mime_type",
+          "object_key",
+          "status",
+          "enabled",
+          "uploaded_by_user_id"
+        ],
+        "title": "DocumentResponse",
+        "type": "object"
+      },
+      "DocumentUpdate": {
+        "properties": {
+          "enabled": {
+            "description": "Whether this document can be used by organization-scoped RAG.",
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "DocumentUpdate",
+        "type": "object"
+      },
+      "DocumentUploadCreate": {
+        "properties": {
+          "filename": {
+            "description": "Original filename. Directory components are stripped server-side.",
+            "title": "Filename",
+            "type": "string"
+          },
+          "mime_type": {
+            "default": "application/octet-stream",
+            "description": "Uploaded document MIME type.",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional display title. Defaults to the filename stem.",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "title": "DocumentUploadCreate",
+        "type": "object"
+      },
+      "DocumentUploadResponse": {
+        "properties": {
+          "byte_size": {
+            "default": 0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checksum"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "logical_document_id": {
+            "title": "Logical Document Id",
+            "type": "string"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "object_key": {
+            "title": "Object Key",
+            "type": "string"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published By User Id"
+          },
+          "scope": {
+            "description": "Document scope: organization or global.",
+            "title": "Scope",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "upload_url": {
+            "description": "API-relative URL where the frontend uploads the document bytes with PUT.",
+            "title": "Upload Url",
+            "type": "string"
+          },
+          "uploaded_by_user_id": {
+            "title": "Uploaded By User Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "logical_document_id",
+          "version",
+          "scope",
+          "title",
+          "filename",
+          "mime_type",
+          "object_key",
+          "status",
+          "enabled",
+          "uploaded_by_user_id",
+          "upload_url"
+        ],
+        "title": "DocumentUploadResponse",
+        "type": "object"
+      },
+      "GlobalDocumentUploadCreate": {
+        "properties": {
+          "filename": {
+            "description": "Original filename. Directory components are stripped server-side.",
+            "title": "Filename",
+            "type": "string"
+          },
+          "mime_type": {
+            "default": "application/octet-stream",
+            "description": "Uploaded document MIME type.",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional display title. Defaults to the filename stem.",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "title": "GlobalDocumentUploadCreate",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "ok": {
+            "description": "Whether the API process is alive.",
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "Heartbeat": {
+        "properties": {
+          "last_successful_upload_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of the last successful snapshot upload.",
+            "title": "Last Successful Upload At"
+          },
+          "modules": {
+            "additionalProperties": true,
+            "description": "Collector module health/status metadata.",
+            "title": "Modules",
+            "type": "object"
+          },
+          "namespaces": {
+            "description": "Namespaces visible to the collector.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Namespaces",
+            "type": "array"
+          },
+          "permissions": {
+            "description": "Kubernetes permissions available to the collector.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "version": {
+            "description": "Collector software version.",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Heartbeat",
+        "type": "object"
+      },
+      "InvitationCreate": {
+        "properties": {
+          "email": {
+            "description": "Email address to invite into the active organization.",
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "default": "viewer",
+            "description": "Role assigned when the invitation is accepted.",
+            "enum": [
+              "admin",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "InvitationCreate",
+        "type": "object"
+      },
+      "InvitationResponse": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "invited_by_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invited By User Id"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "workos_invitation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Invitation Id"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "email",
+          "role",
+          "status"
+        ],
+        "title": "InvitationResponse",
+        "type": "object"
+      },
+      "KnowledgeChunkReference": {
+        "description": "Retrieved chunk attached to ``GraphState`` for explanation enrichment.",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "score": {
+            "default": 0.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "source_title": {
+            "title": "Source Title",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_title",
+          "source_type",
+          "content"
+        ],
+        "title": "KnowledgeChunkReference",
+        "type": "object"
+      },
+      "LogoutResponse": {
+        "properties": {
+          "logout_url": {
+            "description": "URL the frontend should navigate to for WorkOS session logout.",
+            "title": "Logout Url",
+            "type": "string"
+          },
+          "redirect_to": {
+            "description": "Allowed frontend URL WorkOS should return to after logout.",
+            "title": "Redirect To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "logout_url",
+          "redirect_to"
+        ],
+        "title": "LogoutResponse",
+        "type": "object"
+      },
+      "MembershipResponse": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          },
+          "workos_membership_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Membership Id"
+          },
+          "workos_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Updated At"
+          }
+        },
+        "required": [
+          "organization_id",
+          "user_id",
+          "role"
+        ],
+        "title": "MembershipResponse",
+        "type": "object"
+      },
+      "MembershipUpdate": {
+        "properties": {
+          "role": {
+            "description": "New role for the organization member.",
+            "enum": [
+              "admin",
+              "viewer"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "MembershipUpdate",
+        "type": "object"
+      },
+      "NamespaceConfig": {
+        "properties": {
+          "is_system": {
+            "default": false,
+            "description": "Whether the namespace is considered platform/system infrastructure.",
+            "title": "Is System",
+            "type": "boolean"
+          },
+          "monitored": {
+            "default": true,
+            "description": "Whether this namespace is included in customer-visible analysis.",
+            "title": "Monitored",
+            "type": "boolean"
+          },
+          "namespace": {
+            "description": "Kubernetes namespace name.",
+            "title": "Namespace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace"
+        ],
+        "title": "NamespaceConfig",
+        "type": "object"
+      },
+      "NamespaceResponse": {
+        "properties": {
+          "cluster_id": {
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "is_system": {
+            "title": "Is System",
+            "type": "boolean"
+          },
+          "monitored": {
+            "title": "Monitored",
+            "type": "boolean"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "cluster_id",
+          "namespace",
+          "monitored",
+          "is_system"
+        ],
+        "title": "NamespaceResponse",
+        "type": "object"
+      },
+      "NamespaceUpdate": {
+        "properties": {
+          "namespaces": {
+            "items": {
+              "$ref": "#/components/schemas/NamespaceConfig"
+            },
+            "title": "Namespaces",
+            "type": "array"
+          }
+        },
+        "title": "NamespaceUpdate",
+        "type": "object"
+      },
+      "OrganizationMembershipResponse": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "is_internal": {
+            "title": "Is Internal",
+            "type": "boolean"
+          },
+          "organization_id": {
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "organization_name": {
+            "title": "Organization Name",
+            "type": "string"
+          },
+          "organization_slug": {
+            "title": "Organization Slug",
+            "type": "string"
+          },
+          "role": {
+            "description": "Organization role, for example owner, admin, or viewer.",
+            "title": "Role",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          },
+          "user_name": {
+            "title": "User Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id",
+          "organization_name",
+          "organization_slug",
+          "user_id",
+          "email",
+          "user_name",
+          "is_internal",
+          "role"
+        ],
+        "title": "OrganizationMembershipResponse",
+        "type": "object"
+      },
+      "OrganizationSwitch": {
+        "properties": {
+          "organization_id": {
+            "description": "Organization id to make active in the sealed WorkOS session.",
+            "title": "Organization Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_id"
+        ],
+        "title": "OrganizationSwitch",
+        "type": "object"
+      },
+      "OrganizationSwitchResponse": {
+        "properties": {
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "workos_organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Organization Id"
+          }
+        },
+        "title": "OrganizationSwitchResponse",
+        "type": "object"
+      },
+      "PlanStep": {
+        "description": "Single ordered step in the planner output (1-based indexing in ``title`` for MVP).",
+        "properties": {
+          "depends_on": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Depends On",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "effort": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Effort",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "impact": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Impact",
+            "type": "string"
+          },
+          "recommendation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendation Id"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "impact",
+          "effort"
+        ],
+        "title": "PlanStep",
+        "type": "object"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "ready": {
+            "description": "Whether the API process is ready to serve traffic.",
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ready"
+        ],
+        "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "Recommendation": {
+        "description": "One ranked architecture move proposed by the recommendation agent.",
+        "properties": {
+          "effort": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Effort",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "impact": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Impact",
+            "type": "string"
+          },
+          "pattern": {
+            "title": "Pattern",
+            "type": "string"
+          },
+          "priority": {
+            "default": 99,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "solution": {
+            "title": "Solution",
+            "type": "string"
+          },
+          "source_smells": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Smells",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pattern",
+          "solution",
+          "impact",
+          "effort"
+        ],
+        "title": "Recommendation",
+        "type": "object"
+      },
+      "RecommendationRequest": {
+        "description": "POST body: raw metric bag plus topology (telemetry node normalizes signal keys).\n\nWhen ``signals`` is empty and ``topology`` has no services or edges, the API\nloads the latest Kubernetes snapshot from Postgres (requires ``ARCHAGENT_POSTGRES_DSN``).",
+        "properties": {
+          "logs": {
+            "additionalProperties": true,
+            "description": "Optional inline log-derived evidence and aggregate signals.",
+            "title": "Logs",
+            "type": "object"
+          },
+          "signals": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Raw metric/signal bag. Empty means load signals from the selected persisted snapshot.",
+            "title": "Signals",
+            "type": "object"
+          },
+          "topology": {
+            "$ref": "#/components/schemas/ServiceTopology",
+            "description": "Inline service topology to analyze. Empty means load topology from the selected persisted snapshot."
+          }
+        },
+        "title": "RecommendationRequest",
+        "type": "object"
+      },
+      "RecommendationResponse": {
+        "description": "Full pipeline result returned to API clients.",
+        "properties": {
+          "critiques": {
+            "description": "Risk or constraint warnings for recommended patterns.",
+            "items": {
+              "$ref": "#/components/schemas/Critique"
+            },
+            "title": "Critiques",
+            "type": "array"
+          },
+          "explanation_report": {
+            "default": "",
+            "description": "Markdown report intended for display or export.",
+            "title": "Explanation Report",
+            "type": "string"
+          },
+          "explanation_source": {
+            "default": "",
+            "description": "Explanation generation mode, for example deterministic or llm.",
+            "title": "Explanation Source",
+            "type": "string"
+          },
+          "knowledge_context": {
+            "description": "Knowledge chunks used as RAG context.",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeChunkReference"
+            },
+            "title": "Knowledge Context",
+            "type": "array"
+          },
+          "log_analysis": {
+            "additionalProperties": true,
+            "description": "Optional log-analysis details keyed by service or category.",
+            "title": "Log Analysis",
+            "type": "object"
+          },
+          "plan": {
+            "description": "Prioritized execution plan steps.",
+            "items": {
+              "$ref": "#/components/schemas/PlanStep"
+            },
+            "title": "Plan",
+            "type": "array"
+          },
+          "recommendations": {
+            "description": "Ranked architecture recommendations.",
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            },
+            "title": "Recommendations",
+            "type": "array"
+          },
+          "scoped_analysis": {
+            "items": {
+              "$ref": "#/components/schemas/ScopedAnalysis"
+            },
+            "title": "Scoped Analysis",
+            "type": "array"
+          },
+          "smells": {
+            "description": "Detected infrastructure and architecture smells.",
+            "items": {
+              "$ref": "#/components/schemas/Smell"
+            },
+            "title": "Smells",
+            "type": "array"
+          },
+          "snapshot_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Snapshot run id analyzed, or null for inline payload analysis.",
+            "title": "Snapshot Run Id"
+          }
+        },
+        "required": [
+          "smells",
+          "recommendations",
+          "critiques",
+          "plan"
+        ],
+        "title": "RecommendationResponse",
+        "type": "object"
+      },
+      "RegistrationExchange": {
+        "properties": {
+          "registration_token": {
+            "description": "One-time token created from /v1/clusters/{cluster_id}/registration-token.",
+            "title": "Registration Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "registration_token"
+        ],
+        "title": "RegistrationExchange",
+        "type": "object"
+      },
+      "ScopedAnalysis": {
+        "description": "Grouped analysis cards for one affected workload, service, cluster, or system scope.",
+        "properties": {
+          "critiques": {
+            "items": {
+              "$ref": "#/components/schemas/Critique"
+            },
+            "title": "Critiques",
+            "type": "array"
+          },
+          "plan": {
+            "items": {
+              "$ref": "#/components/schemas/PlanStep"
+            },
+            "title": "Plan",
+            "type": "array"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/Recommendation"
+            },
+            "title": "Recommendations",
+            "type": "array"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AnalysisScope"
+          },
+          "smells": {
+            "items": {
+              "$ref": "#/components/schemas/Smell"
+            },
+            "title": "Smells",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scope"
+        ],
+        "title": "ScopedAnalysis",
+        "type": "object"
+      },
+      "ServiceTopology": {
+        "description": "Service list plus edges and optional critical infrastructure markers.",
+        "properties": {
+          "critical_queues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Critical Queues",
+            "type": "array"
+          },
+          "critical_stores": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Critical Stores",
+            "type": "array"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/TopologyEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/TopologyGraph"
+          },
+          "service_details": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Service Details",
+            "type": "object"
+          },
+          "services": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Services",
+            "type": "array"
+          }
+        },
+        "title": "ServiceTopology",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "properties": {
+          "organization_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Id"
+          },
+          "organizations": {
+            "items": {
+              "$ref": "#/components/schemas/OrganizationMembershipResponse"
+            },
+            "title": "Organizations",
+            "type": "array"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserSummaryResponse"
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "title": "SessionResponse",
+        "type": "object"
+      },
+      "SignedOutResponse": {
+        "properties": {
+          "signed_out": {
+            "title": "Signed Out",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "signed_out"
+        ],
+        "title": "SignedOutResponse",
+        "type": "object"
+      },
+      "Smell": {
+        "description": "API projection of a smell dict from ``smell_rules.detect_smells``.",
+        "properties": {
+          "confidence": {
+            "default": 0.8,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "evidence": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Evidence",
+            "type": "object"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "severity": {
+            "default": "medium",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "Smell",
+        "type": "object"
+      },
+      "SnapshotUpload": {
+        "properties": {
+          "snapshot": {
+            "additionalProperties": true,
+            "description": "Canonical collector snapshot payload containing services, signals, topology, logs, and data quality.",
+            "title": "Snapshot",
+            "type": "object"
+          }
+        },
+        "required": [
+          "snapshot"
+        ],
+        "title": "SnapshotUpload",
+        "type": "object"
+      },
+      "TaskPayload": {
+        "properties": {
+          "args": {
+            "description": "Positional arguments passed to the task handler.",
+            "items": {},
+            "title": "Args",
+            "type": "array"
+          },
+          "kwargs": {
+            "additionalProperties": true,
+            "description": "Keyword arguments passed to the task handler.",
+            "title": "Kwargs",
+            "type": "object"
+          },
+          "task_name": {
+            "description": "Task name. Must match the path parameter.",
+            "title": "Task Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_name"
+        ],
+        "title": "TaskPayload",
+        "type": "object"
+      },
+      "TaskRunResponse": {
+        "properties": {
+          "processed": {
+            "title": "Processed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "processed"
+        ],
+        "title": "TaskRunResponse",
+        "type": "object"
+      },
+      "TeamMemberResponse": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "description": "User id. This value is accepted as membership_id for member update/deactivate routes.",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role"
+        ],
+        "title": "TeamMemberResponse",
+        "type": "object"
+      },
+      "TeamResponse": {
+        "properties": {
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/InvitationResponse"
+            },
+            "title": "Invitations",
+            "type": "array"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/TeamMemberResponse"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "title": "TeamResponse",
+        "type": "object"
+      },
+      "TopologyEdge": {
+        "description": "One directed dependency between two services (API uses ``from`` / ``to`` aliases).",
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "from": {
+            "title": "From",
+            "type": "string"
+          },
+          "inferred_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inferred From"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "type"
+        ],
+        "title": "TopologyEdge",
+        "type": "object"
+      },
+      "TopologyGraph": {
+        "description": "UI-ready topology graph payload stored inside the canonical snapshot.",
+        "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/TopologyGraphEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/TopologyGraphMeta"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/TopologyNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          }
+        },
+        "title": "TopologyGraph",
+        "type": "object"
+      },
+      "TopologyGraphEdge": {
+        "additionalProperties": true,
+        "description": "UI-ready topology graph edge with confidence and evidence.",
+        "properties": {
+          "confidence": {
+            "default": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "data_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Sources",
+            "type": "array"
+          },
+          "direction": {
+            "default": "outbound",
+            "title": "Direction",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "from": {
+            "title": "From",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "inferred_from": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Inferred From",
+            "type": "array"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol"
+          },
+          "status": {
+            "default": "unknown",
+            "title": "Status",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          },
+          "type": {
+            "default": "unknown",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "from",
+          "to"
+        ],
+        "title": "TopologyGraphEdge",
+        "type": "object"
+      },
+      "TopologyGraphMeta": {
+        "additionalProperties": true,
+        "description": "Graph-level rendering and data-quality metadata.",
+        "properties": {
+          "data_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Sources",
+            "type": "array"
+          },
+          "edge_count": {
+            "default": 0,
+            "title": "Edge Count",
+            "type": "integer"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "node_count": {
+            "default": 0,
+            "title": "Node Count",
+            "type": "integer"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "topology_confidence": {
+            "default": "low",
+            "title": "Topology Confidence",
+            "type": "string"
+          }
+        },
+        "title": "TopologyGraphMeta",
+        "type": "object"
+      },
+      "TopologyNode": {
+        "additionalProperties": true,
+        "description": "UI-ready topology graph node.",
+        "properties": {
+          "available_replicas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Replicas"
+          },
+          "cpu_usage_cores": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Usage Cores"
+          },
+          "cpu_utilization": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Utilization"
+          },
+          "data_sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Sources",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "error_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Rate"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_external": {
+            "default": false,
+            "title": "Is External",
+            "type": "boolean"
+          },
+          "kind": {
+            "default": "workload",
+            "title": "Kind",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": true,
+            "title": "Labels",
+            "type": "object"
+          },
+          "memory_usage_bytes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Usage Bytes"
+          },
+          "memory_utilization": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Utilization"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "platform": {
+            "default": "kubernetes",
+            "title": "Platform",
+            "type": "string"
+          },
+          "recommendation_count": {
+            "default": 0,
+            "title": "Recommendation Count",
+            "type": "integer"
+          },
+          "replicas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replicas"
+          },
+          "request_count": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Count"
+          },
+          "request_latency_p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Latency P95 Ms"
+          },
+          "resource_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Name"
+          },
+          "restarts": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restarts"
+          },
+          "severity": {
+            "default": "none",
+            "title": "Severity",
+            "type": "string"
+          },
+          "smell_count": {
+            "default": 0,
+            "title": "Smell Count",
+            "type": "integer"
+          },
+          "status": {
+            "default": "unknown",
+            "title": "Status",
+            "type": "string"
+          },
+          "unavailable_replicas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Replicas"
+          },
+          "workload_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workload Kind"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "TopologyNode",
+        "type": "object"
+      },
+      "TopologyResponse": {
+        "description": "GET /v1/topology response backed by the persisted snapshot JSONB.",
+        "properties": {
+          "data_quality": {
+            "additionalProperties": true,
+            "description": "Collector and topology quality hints for the displayed graph.",
+            "title": "Data Quality",
+            "type": "object"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/TopologyGraph"
+          },
+          "snapshot_run_id": {
+            "description": "Snapshot run id used to build the topology graph.",
+            "title": "Snapshot Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_run_id"
+        ],
+        "title": "TopologyResponse",
+        "type": "object"
+      },
+      "UserResponse": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_internal": {
+            "title": "Is Internal",
+            "type": "boolean"
+          },
+          "memberships": {
+            "items": {
+              "$ref": "#/components/schemas/OrganizationMembershipResponse"
+            },
+            "title": "Memberships",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "workos_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos Updated At"
+          },
+          "workos_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workos User Id"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "is_internal"
+        ],
+        "title": "UserResponse",
+        "type": "object"
+      },
+      "UserSummaryResponse": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name"
+        ],
+        "title": "UserSummaryResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkOSWebhookResponse": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "title": "WorkOSWebhookResponse",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "CSRFHeader": {
+        "description": "Signed double-submit CSRF token required for unsafe browser requests in WorkOS auth mode.",
+        "in": "header",
+        "name": "x-archagent-csrf",
+        "type": "apiKey"
+      },
+      "CloudTasksOIDC": {
+        "description": "Cloud Run OIDC token presented by Google Cloud Tasks in production.",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "CollectorBearer": {
+        "description": "Collector credential returned by /collector/v1/register or /collector/v1/credentials/rotate.",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "DevelopmentIdentityHeader": {
+        "description": "Local development/test identity selector. Disabled in production.",
+        "in": "header",
+        "name": "x-archagent-user",
+        "type": "apiKey"
+      },
+      "WorkOSSessionCookie": {
+        "description": "Sealed WorkOS AuthKit session cookie used in hosted auth mode.",
+        "in": "cookie",
+        "name": "__Host-archagent-session",
+        "type": "apiKey"
+      },
+      "WorkOSWebhookSignature": {
+        "description": "WorkOS webhook signature header validated with the configured webhook secret.",
+        "in": "header",
+        "name": "workos-signature",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "\nArchAgent API contract for browser frontend, collector, staff, webhook, and worker integrations.\n\nUse `/openapi.json` as the machine-readable source of truth. Swagger UI is available at `/docs`\nand ReDoc is available at `/redoc` when the FastAPI app is running.\n",
+    "title": "ArchAgent",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/auth/callback": {
+      "get": {
+        "description": "Exchange a WorkOS authorization code, mirror the identity locally, set the sealed session cookie, and redirect to the frontend.",
+        "operationId": "callback_auth_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Frontend return URL previously passed through the WorkOS OAuth state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Frontend return URL previously passed through the WorkOS OAuth state.",
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete WorkOS Login",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/csrf": {
+      "get": {
+        "description": "Issue a signed double-submit CSRF token and set the matching readable CSRF cookie.",
+        "operationId": "csrf_auth_csrf_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsrfTokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Issue CSRF Token",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/login": {
+      "get": {
+        "description": "Redirect the browser to WorkOS AuthKit hosted login.",
+        "operationId": "login_auth_login_get",
+        "parameters": [
+          {
+            "description": "Allowed frontend URL to return to after authentication.",
+            "in": "query",
+            "name": "return_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Allowed frontend URL to return to after authentication.",
+              "title": "Return To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start WorkOS Login",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Clear the ArchAgent session and CSRF cookies, then redirect through the WorkOS logout URL.",
+        "operationId": "logout_auth_logout_post",
+        "parameters": [
+          {
+            "description": "Allowed frontend URL to return to after logout.",
+            "in": "query",
+            "name": "return_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Allowed frontend URL to return to after logout.",
+              "title": "Return To"
+            }
+          },
+          {
+            "description": "Use json when logout is initiated by fetch and the frontend will navigate to logout_url.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "redirect",
+              "description": "Use json when logout is initiated by fetch and the frontend will navigate to logout_url.",
+              "enum": [
+                "redirect",
+                "json"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            },
+            "description": "Logout URL payload for fetch-based clients."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          }
+        ],
+        "summary": "Log Out",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/signed-out": {
+      "get": {
+        "description": "Small success payload used after the browser returns from WorkOS logout.",
+        "operationId": "signed_out_auth_signed_out_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedOutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Signed-Out Confirmation",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/collector/v1/credentials/rotate": {
+      "post": {
+        "description": "Revoke the presented collector credential and return a replacement credential.",
+        "operationId": "rotate_collector_v1_credentials_rotate_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorCredentialRotationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "CollectorBearer": []
+          }
+        ],
+        "summary": "Rotate Collector Credential",
+        "tags": [
+          "Collector"
+        ]
+      }
+    },
+    "/collector/v1/heartbeat": {
+      "post": {
+        "description": "Record collector health and capability metadata for the credential's cluster.",
+        "operationId": "heartbeat_collector_v1_heartbeat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Heartbeat"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorHeartbeatResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CollectorBearer": []
+          }
+        ],
+        "summary": "Record Collector Heartbeat",
+        "tags": [
+          "Collector"
+        ]
+      }
+    },
+    "/collector/v1/register": {
+      "post": {
+        "description": "Exchange a one-time registration token for a scoped collector bearer credential.",
+        "operationId": "register_collector_v1_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationExchange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorRegistrationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Exchange Collector Registration Token",
+        "tags": [
+          "Collector"
+        ]
+      }
+    },
+    "/collector/v1/snapshots": {
+      "post": {
+        "description": "Persist a tenant-scoped hosted snapshot uploaded by a collector credential.",
+        "operationId": "snapshots_collector_v1_snapshots_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CollectorBearer": []
+          }
+        ],
+        "summary": "Upload Collector Snapshot",
+        "tags": [
+          "Collector"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "description": "Minimal liveness probe for orchestrators and load balancers.",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness Probe",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/internal/tasks/{task_name}": {
+      "post": {
+        "description": "Private Cloud Tasks handler. Production requests must present a valid Cloud Run OIDC bearer token.",
+        "operationId": "run_task_internal_tasks__task_name__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_name",
+            "required": true,
+            "schema": {
+              "title": "Task Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CloudTasksOIDC": []
+          }
+        ],
+        "summary": "Run Internal Task",
+        "tags": [
+          "Tasks"
+        ]
+      }
+    },
+    "/internal/v1/accounts": {
+      "get": {
+        "description": "Return staff-only account summaries with user, cluster, and document counts.",
+        "operationId": "list_accounts_internal_v1_accounts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccountSummaryResponse"
+                  },
+                  "title": "Response List Accounts Internal V1 Accounts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Accounts",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/accounts/{account_id}": {
+      "get": {
+        "description": "Return one staff-only account detail payload with members, invitations, clusters, documents, analysis runs, and audit events.",
+        "operationId": "get_account_internal_v1_accounts__account_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDetailsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Get Account Details",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/knowledge/documents": {
+      "get": {
+        "description": "Return staff-only global knowledge documents.",
+        "operationId": "list_global_documents_internal_v1_knowledge_documents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentResponse"
+                  },
+                  "title": "Response List Global Documents Internal V1 Knowledge Documents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Global Knowledge Documents",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/knowledge/documents/uploads": {
+      "post": {
+        "description": "Create global document metadata and return the API-relative URL for uploading bytes.",
+        "operationId": "create_global_upload_internal_v1_knowledge_documents_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlobalDocumentUploadCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Create Global Knowledge Upload",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/knowledge/documents/{document_id}/archive": {
+      "post": {
+        "description": "Archive and disable a published global knowledge document.",
+        "operationId": "archive_global_document_internal_v1_knowledge_documents__document_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Archive Global Knowledge Document",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/knowledge/documents/{document_id}/complete": {
+      "post": {
+        "description": "Mark a global document ready for asynchronous scanning, chunking, and indexing.",
+        "operationId": "complete_global_upload_internal_v1_knowledge_documents__document_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Complete Global Knowledge Upload",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/knowledge/documents/{document_id}/content": {
+      "put": {
+        "description": "Upload raw bytes for a global knowledge document.",
+        "operationId": "upload_global_content_internal_v1_knowledge_documents__document_id__content_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Upload Global Knowledge Content",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/knowledge/documents/{document_id}/publish": {
+      "post": {
+        "description": "Publish an indexed draft or archived global document for retrieval across organizations.",
+        "operationId": "publish_global_document_internal_v1_knowledge_documents__document_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Publish Global Knowledge Document",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/knowledge/documents/{document_id}/rollback": {
+      "post": {
+        "description": "Republish a previous global document version.",
+        "operationId": "rollback_global_document_internal_v1_knowledge_documents__document_id__rollback_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Rollback Global Knowledge Document",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/internal/v1/users": {
+      "get": {
+        "description": "Return staff-only user records with organization memberships.",
+        "operationId": "list_users_internal_v1_users_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserResponse"
+                  },
+                  "title": "Response List Users Internal V1 Users Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Users",
+        "tags": [
+          "Internal"
+        ]
+      }
+    },
+    "/readyz": {
+      "get": {
+        "description": "Readiness probe used by Cloud Run and container orchestrators.",
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness Probe",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/v1/analysis-runs": {
+      "get": {
+        "description": "List analysis runs for the active organization, optionally filtered by cluster_id.",
+        "operationId": "list_analysis_runs_v1_analysis_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cluster Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AnalysisRunResponse"
+                  },
+                  "title": "Response List Analysis Runs V1 Analysis Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Analysis Runs",
+        "tags": [
+          "Product"
+        ]
+      },
+      "post": {
+        "description": "Queue or run an analysis for the active organization. Requires owner or admin role.",
+        "operationId": "create_analysis_run_v1_analysis_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRunCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Create Analysis Run",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/analysis-runs/{run_id}": {
+      "get": {
+        "description": "Return one analysis run by id for the active organization.",
+        "operationId": "get_analysis_run_v1_analysis_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Get Analysis Run",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/audit-log": {
+      "get": {
+        "description": "Return the latest 100 organization audit events for the active organization.",
+        "operationId": "get_audit_log_v1_audit_log_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventResponse"
+                  },
+                  "title": "Response Get Audit Log V1 Audit Log Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Audit Log",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/clusters": {
+      "get": {
+        "description": "List Kubernetes clusters owned by the active organization.",
+        "operationId": "get_clusters_v1_clusters_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClusterResponse"
+                  },
+                  "title": "Response Get Clusters V1 Clusters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Clusters",
+        "tags": [
+          "Product"
+        ]
+      },
+      "post": {
+        "description": "Create a Helm-connected cluster record for the active organization. Requires owner or admin role.",
+        "operationId": "add_cluster_v1_clusters_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Create Cluster",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/clusters/{cluster_id}/namespaces": {
+      "get": {
+        "description": "List namespace monitoring choices for a cluster.",
+        "operationId": "get_cluster_namespaces_v1_clusters__cluster_id__namespaces_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NamespaceResponse"
+                  },
+                  "title": "Response Get Cluster Namespaces V1 Clusters  Cluster Id  Namespaces Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Cluster Namespaces",
+        "tags": [
+          "Product"
+        ]
+      },
+      "put": {
+        "description": "Replace namespace monitoring choices for a cluster. Requires owner or admin role.",
+        "operationId": "set_cluster_namespaces_v1_clusters__cluster_id__namespaces_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NamespaceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NamespaceResponse"
+                  },
+                  "title": "Response Set Cluster Namespaces V1 Clusters  Cluster Id  Namespaces Put",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Replace Cluster Namespaces",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/clusters/{cluster_id}/registration-token": {
+      "post": {
+        "description": "Rotate and return a one-time collector registration token for Helm installation. Requires owner or admin role.",
+        "operationId": "create_collector_registration_token_v1_clusters__cluster_id__registration_token_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorRegistrationTokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Create Collector Registration Token",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/knowledge/documents": {
+      "get": {
+        "description": "List organization-scoped knowledge documents available to the active organization.",
+        "operationId": "get_documents_v1_knowledge_documents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentResponse"
+                  },
+                  "title": "Response Get Documents V1 Knowledge Documents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Knowledge Documents",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/knowledge/documents/uploads": {
+      "post": {
+        "description": "Create document metadata and return the API-relative URL for uploading bytes.",
+        "operationId": "create_document_upload_v1_knowledge_documents_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentUploadCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Create Knowledge Document Upload",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/knowledge/documents/{document_id}": {
+      "delete": {
+        "description": "Delete document storage and soft-delete the document metadata.",
+        "operationId": "delete_document_v1_knowledge_documents__document_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Delete Knowledge Document",
+        "tags": [
+          "Product"
+        ]
+      },
+      "patch": {
+        "description": "Enable or disable a knowledge document for organization-scoped retrieval.",
+        "operationId": "update_document_v1_knowledge_documents__document_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Update Knowledge Document",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/knowledge/documents/{document_id}/complete": {
+      "post": {
+        "description": "Mark an uploaded document ready for asynchronous scanning, chunking, and indexing.",
+        "operationId": "complete_document_upload_v1_knowledge_documents__document_id__complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Complete Knowledge Document Upload",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/knowledge/documents/{document_id}/content": {
+      "put": {
+        "description": "Upload raw document bytes to the URL returned by the upload creation endpoint.",
+        "operationId": "upload_document_content_v1_knowledge_documents__document_id__content_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Upload Knowledge Document Content",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/knowledge/documents/{document_id}/download": {
+      "get": {
+        "description": "Download the original uploaded document bytes.",
+        "operationId": "download_document_v1_knowledge_documents__document_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Document bytes. Content-Type is the stored document MIME type."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Download Knowledge Document",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/organizations": {
+      "get": {
+        "description": "List organizations where the authenticated user has an active membership.",
+        "operationId": "get_organizations_v1_organizations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationMembershipResponse"
+                  },
+                  "title": "Response Get Organizations V1 Organizations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List User Organizations",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/recommendations": {
+      "post": {
+        "description": "Run the full recommendation pipeline and return smells, recommendations, critiques, plan steps, scoped analysis, log analysis, knowledge citations, and an explanation report. With an empty body, the API loads a persisted snapshot.",
+        "operationId": "recommend_v1_recommendations_post",
+        "parameters": [
+          {
+            "description": "Analyze a specific snapshot run (UUID). Omit to use the latest run.",
+            "in": "query",
+            "name": "run_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Analyze a specific snapshot run (UUID). Omit to use the latest run.",
+              "title": "Run Id"
+            }
+          },
+          {
+            "description": "Associate the persisted analysis with an organization-owned cluster.",
+            "in": "query",
+            "name": "cluster_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Associate the persisted analysis with an organization-owned cluster.",
+              "title": "Cluster Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Run Recommendations",
+        "tags": [
+          "Recommendations"
+        ]
+      }
+    },
+    "/v1/session": {
+      "get": {
+        "description": "Return the authenticated user, active organization, role, permissions, and selectable organizations.",
+        "operationId": "get_session_v1_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Get Customer Session",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/session/organization": {
+      "post": {
+        "description": "Refresh the sealed WorkOS session for another organization available to the current user.",
+        "operationId": "switch_organization_v1_session_organization_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationSwitch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSwitchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Switch Active Organization",
+        "tags": [
+          "Auth",
+          "Product"
+        ]
+      }
+    },
+    "/v1/team": {
+      "get": {
+        "description": "Return members and pending/revoked invitations for the active organization.",
+        "operationId": "get_team_v1_team_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "List Organization Team",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/team/invitations": {
+      "post": {
+        "description": "Create a WorkOS-backed organization invitation. Requires owner or admin role.",
+        "operationId": "invite_team_member_v1_team_invitations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Invite Team Member",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/team/invitations/{invitation_id}": {
+      "delete": {
+        "description": "Revoke an organization invitation by id. Requires owner or admin role.",
+        "operationId": "revoke_team_invitation_v1_team_invitations__invitation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Revoke Team Invitation",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/team/members/{membership_id}": {
+      "delete": {
+        "description": "Deactivate an organization membership. Requires owner or admin role.",
+        "operationId": "deactivate_team_member_v1_team_members__membership_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Deactivate Team Member",
+        "tags": [
+          "Product"
+        ]
+      },
+      "patch": {
+        "description": "Update an organization member's role. The path id accepts either a WorkOS membership id or user id.",
+        "operationId": "update_team_member_v1_team_members__membership_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "CSRFHeader": [],
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Update Team Member Role",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/v1/topology": {
+      "get": {
+        "description": "Return the persisted UI-ready topology graph for the active organization's selected cluster.",
+        "operationId": "get_topology_v1_topology_get",
+        "parameters": [
+          {
+            "description": "Return topology for a specific snapshot run (UUID). Omit to use the latest run.",
+            "in": "query",
+            "name": "run_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return topology for a specific snapshot run (UUID). Omit to use the latest run.",
+              "title": "Run Id"
+            }
+          },
+          {
+            "description": "Use this organization-owned cluster context. Defaults to the first cluster.",
+            "in": "query",
+            "name": "cluster_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Use this organization-owned cluster context. Defaults to the first cluster.",
+              "title": "Cluster Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopologyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "WorkOSSessionCookie": []
+          },
+          {
+            "DevelopmentIdentityHeader": []
+          }
+        ],
+        "summary": "Get Topology Graph",
+        "tags": [
+          "Topology"
+        ]
+      }
+    },
+    "/webhooks/workos/{path_token}": {
+      "post": {
+        "description": "Validate a signed WorkOS webhook, persist its receipt idempotently, and enqueue asynchronous synchronization.",
+        "operationId": "receive_workos_webhook_webhooks_workos__path_token__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path_token",
+            "required": true,
+            "schema": {
+              "title": "Path Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOSWebhookResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "WorkOSWebhookSignature": []
+          }
+        ],
+        "summary": "Receive WorkOS Webhook",
+        "tags": [
+          "Webhooks"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Operational liveness and readiness probes.",
+      "name": "Health"
+    },
+    {
+      "description": "WorkOS AuthKit browser authentication, CSRF, and logout routes.",
+      "name": "Auth"
+    },
+    {
+      "description": "Customer-facing frontend API for sessions, teams, clusters, knowledge, audit, and analysis history.",
+      "name": "Product"
+    },
+    {
+      "description": "Persisted topology graph API for dashboard rendering.",
+      "name": "Topology"
+    },
+    {
+      "description": "Architecture analysis and recommendation pipeline API.",
+      "name": "Recommendations"
+    },
+    {
+      "description": "Bearer-token authenticated collector registration and ingest API.",
+      "name": "Collector"
+    },
+    {
+      "description": "Staff-only internal administration API.",
+      "name": "Internal"
+    },
+    {
+      "description": "Signed third-party webhook ingress.",
+      "name": "Webhooks"
+    },
+    {
+      "description": "Private Cloud Tasks handlers.",
+      "name": "Tasks"
+    }
+  ]
+}

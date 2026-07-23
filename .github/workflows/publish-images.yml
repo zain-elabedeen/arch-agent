@@ -1,0 +1,67 @@
+name: Publish backend images
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      INFRA_REPOSITORY: ${{ vars.ARCHAGENT_INFRA_REPOSITORY }}
+      INFRA_DISPATCH_TOKEN: ${{ secrets.ARCHAGENT_INFRA_DISPATCH_TOKEN }}
+      DEPLOY_ENVIRONMENT: ${{ vars.ARCHAGENT_DEPLOY_ENVIRONMENT || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_ARTIFACT_WRITER_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+      - name: Build and push API
+        id: api
+        run: |
+          image="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/archagent/api:${{ github.sha }}"
+          docker build -t "${image}" .
+          docker push "${image}"
+          echo "image=$(docker inspect --format='{{index .RepoDigests 0}}' "${image}")" >> "${GITHUB_OUTPUT}"
+      - name: Build and push collector
+        id: collector
+        run: |
+          image="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/archagent/collector:${{ github.sha }}"
+          docker build -f Dockerfile.collector -t "${image}" .
+          docker push "${image}"
+          echo "image=$(docker inspect --format='{{index .RepoDigests 0}}' "${image}")" >> "${GITHUB_OUTPUT}"
+      - name: Build and push scanner
+        id: scanner
+        run: |
+          image="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/archagent/scanner:${{ github.sha }}"
+          docker build -f deploy/scanner/Dockerfile -t "${image}" .
+          docker push "${image}"
+          echo "image=$(docker inspect --format='{{index .RepoDigests 0}}' "${image}")" >> "${GITHUB_OUTPUT}"
+      - name: Dispatch staging deployment
+        if: env.INFRA_REPOSITORY != '' && env.INFRA_DISPATCH_TOKEN != ''
+        env:
+          API_IMAGE: ${{ steps.api.outputs.image }}
+          COLLECTOR_IMAGE: ${{ steps.collector.outputs.image }}
+          SCANNER_IMAGE: ${{ steps.scanner.outputs.image }}
+        run: |
+          jq -n \
+            --arg environment "${DEPLOY_ENVIRONMENT}" \
+            --arg api_image "${API_IMAGE}" \
+            --arg collector_image "${COLLECTOR_IMAGE}" \
+            --arg scanner_image "${SCANNER_IMAGE}" \
+            '{event_type:"backend_images_published",client_payload:{environment:$environment,api_image:$api_image,collector_image:$collector_image,scanner_image:$scanner_image}}' \
+            | curl --fail --show-error --silent \
+              --request POST \
+              --header "Accept: application/vnd.github+json" \
+              --header "Authorization: Bearer ${INFRA_DISPATCH_TOKEN}" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              --data @- \
+              "https://api.github.com/repos/${INFRA_REPOSITORY}/dispatches"

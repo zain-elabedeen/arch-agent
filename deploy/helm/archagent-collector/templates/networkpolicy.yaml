@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: archagent-collector-egress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: archagent-collector
+  policyTypes: ["Egress"]
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 443
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

@@ -34,5 +34,16 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      - name: Smoke-test Alembic migrations
+        run: |
+          ARCHAGENT_PRODUCT_DATABASE_URL=sqlite:////tmp/archagent-migration.db python -m alembic upgrade head
+          ARCHAGENT_PRODUCT_DATABASE_URL=sqlite:////tmp/archagent-migration.db python -m alembic current
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint collector Helm chart
+        run: helm lint deploy/helm/archagent-collector --set image.tag=ci --set registration.token=ci-token
+
       - name: Build Docker image
         run: docker build --tag archi-agent:ci .

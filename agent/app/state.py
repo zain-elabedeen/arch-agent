@@ -349,9 +349,9 @@ class RecommendationRequest(BaseModel):
     loads the latest Kubernetes snapshot from Postgres (requires ``ARCHAGENT_POSTGRES_DSN``).
     """
 
-    signals: Dict[str, float] = Field(default_factory=dict)
-    topology: ServiceTopology = Field(default_factory=ServiceTopology)
-    logs: Dict[str, Any] = Field(default_factory=dict)
+    signals: Dict[str, float] = Field(default_factory=dict, description="Raw metric/signal bag. Empty means load signals from the selected persisted snapshot.")
+    topology: ServiceTopology = Field(default_factory=ServiceTopology, description="Inline service topology to analyze. Empty means load topology from the selected persisted snapshot.")
+    logs: Dict[str, Any] = Field(default_factory=dict, description="Optional inline log-derived evidence and aggregate signals.")
 
 
 def recommendation_request_has_inline_payload(req: RecommendationRequest) -> bool:
@@ -364,24 +364,24 @@ def recommendation_request_has_inline_payload(req: RecommendationRequest) -> boo
 class TopologyResponse(BaseModel):
     """GET /v1/topology response backed by the persisted snapshot JSONB."""
 
-    snapshot_run_id: str
+    snapshot_run_id: str = Field(description="Snapshot run id used to build the topology graph.")
     graph: TopologyGraph = Field(default_factory=TopologyGraph)
-    data_quality: Dict[str, Any] = Field(default_factory=dict)
+    data_quality: Dict[str, Any] = Field(default_factory=dict, description="Collector and topology quality hints for the displayed graph.")
 
 
 class RecommendationResponse(BaseModel):
     """Full pipeline result returned to API clients."""
 
-    snapshot_run_id: Optional[str] = None
-    smells: List[Smell]
-    recommendations: List[Recommendation]
-    critiques: List[Critique]
-    plan: List[PlanStep]
+    snapshot_run_id: Optional[str] = Field(None, description="Snapshot run id analyzed, or null for inline payload analysis.")
+    smells: List[Smell] = Field(description="Detected infrastructure and architecture smells.")
+    recommendations: List[Recommendation] = Field(description="Ranked architecture recommendations.")
+    critiques: List[Critique] = Field(description="Risk or constraint warnings for recommended patterns.")
+    plan: List[PlanStep] = Field(description="Prioritized execution plan steps.")
     scoped_analysis: List[ScopedAnalysis] = Field(default_factory=list)
-    log_analysis: Dict[str, Any] = Field(default_factory=dict)
-    knowledge_context: List[KnowledgeChunkReference] = Field(default_factory=list)
-    explanation_source: str = ""
-    explanation_report: str = ""
+    log_analysis: Dict[str, Any] = Field(default_factory=dict, description="Optional log-analysis details keyed by service or category.")
+    knowledge_context: List[KnowledgeChunkReference] = Field(default_factory=list, description="Knowledge chunks used as RAG context.")
+    explanation_source: str = Field("", description="Explanation generation mode, for example deterministic or llm.")
+    explanation_report: str = Field("", description="Markdown report intended for display or export.")
 
 
 class GraphState(TypedDict, total=False):
@@ -391,6 +391,7 @@ class GraphState(TypedDict, total=False):
     """
 
     run_id: str
+    organization_id: str
     # Populated from the API body; consumed by telemetry_agent.
     raw_signals: Dict[str, float]
     raw_topology: Dict[str, Any]

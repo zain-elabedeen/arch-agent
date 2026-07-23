@@ -8,13 +8,11 @@ without changing downstream smell rules.
 
 from __future__ import annotations
 
-import base64
-import binascii
 import re
 from typing import Any, Dict, Iterable, List, Set
 from urllib.parse import urlparse
 
-from kubernetes.client import V1ConfigMap, V1Pod, V1Secret, V1Service
+from kubernetes.client import V1ConfigMap, V1Pod, V1Service
 
 from agent.app.connectors.kubernetes.kube_labels import app_name_for_labels, app_name_for_pod
 
@@ -150,34 +148,6 @@ def _config_map_values(config_maps: List[V1ConfigMap] | None) -> Dict[tuple[str,
     return out
 
 
-def _decode_secret_value(value: Any) -> str | None:
-    if value is None:
-        return None
-    raw = str(value)
-    try:
-        return base64.b64decode(raw, validate=True).decode("utf-8")
-    except (binascii.Error, UnicodeDecodeError, ValueError):
-        return raw
-
-
-def _secret_values(secrets: List[V1Secret] | None) -> Dict[tuple[str, str], Dict[str, str]]:
-    out: Dict[tuple[str, str], Dict[str, str]] = {}
-    for secret in secrets or []:
-        key = _object_key(secret)
-        if key is None:
-            continue
-        values: Dict[str, str] = {}
-        for k, v in (secret.data or {}).items():
-            decoded = _decode_secret_value(v)
-            if decoded is not None:
-                values[str(k)] = decoded
-        for k, v in (secret.string_data or {}).items():
-            if v is not None:
-                values[str(k)] = str(v)
-        out[key] = values
-    return out
-
-
 def _lookup_key_ref(
     ref: Any,
     values_by_ref: Dict[tuple[str, str], Dict[str, str]],
@@ -196,19 +166,17 @@ def _lookup_key_ref(
 def _env_values(
     pod: V1Pod,
     config_maps: List[V1ConfigMap] | None = None,
-    secrets: List[V1Secret] | None = None,
 ) -> Iterable[tuple[str, str, str]]:
     if not pod.spec:
         return
     namespace = pod.metadata.namespace if pod.metadata else ""
     namespace = namespace or ""
     config_map_values = _config_map_values(config_maps)
-    secret_values = _secret_values(secrets)
     for c in pod.spec.containers or []:
         for e in c.env or []:
             if e.value:
                 env_name = e.name or "ENV"
-                yield (env_name, e.value, f"{env_name}={e.value[:200]}")
+                yield (env_name, e.value, f"{env_name}=<redacted>")
                 continue
             value_from = getattr(e, "value_from", None)
             if not value_from:
@@ -220,13 +188,6 @@ def _env_values(
                     key, value = resolved
                     env_name = e.name or key
                     yield (env_name, value, f"{env_name} from configmap/{namespace}/{cm_ref.name}/{key}")
-            secret_ref = getattr(value_from, "secret_key_ref", None)
-            if secret_ref:
-                resolved = _lookup_key_ref(secret_ref, secret_values, namespace)
-                if resolved:
-                    key, value = resolved
-                    env_name = e.name or key
-                    yield (env_name, value, f"{env_name} from secret/{namespace}/{secret_ref.name}/{key}")
         for source in c.env_from or []:
             prefix = getattr(source, "prefix", None) or ""
             cm_ref = getattr(source, "config_map_ref", None)
@@ -234,11 +195,6 @@ def _env_values(
                 for key, value in config_map_values.get((namespace, str(cm_ref.name)), {}).items():
                     env_name = f"{prefix}{key}"
                     yield (env_name, value, f"{env_name} from configmap/{namespace}/{cm_ref.name}/{key}")
-            secret_ref = getattr(source, "secret_ref", None)
-            if secret_ref and secret_ref.name:
-                for key, value in secret_values.get((namespace, str(secret_ref.name)), {}).items():
-                    env_name = f"{prefix}{key}"
-                    yield (env_name, value, f"{env_name} from secret/{namespace}/{secret_ref.name}/{key}")
 
 
 def _candidate_hosts(value: str) -> Iterable[tuple[str, str, str | None, int | None]]:
@@ -350,7 +306,6 @@ def build_topology(
     services: List[V1Service],
     app_names: Set[str],
     config_maps: List[V1ConfigMap] | None = None,
-    secrets: List[V1Secret] | None = None,
 ) -> Dict[str, Any]:
     """
     Return service topology with legacy internal edges plus external edge candidates.
@@ -399,7 +354,7 @@ def build_topology(
                     f"{_DEPENDENCY_ANNOTATION}={dep}",
                     _SOURCE_CONFIDENCE["annotation"],
                 )
-        for env_name, val, evidence in _env_values(pod, config_maps=config_maps, secrets=secrets):
+        for env_name, val, evidence in _env_values(pod, config_maps=config_maps):
             for host, source, protocol, port in _candidate_hosts(val):
                 tgt = _target_app_for_hostname(host, app_names, services, pod_labels_by_ns)
                 if tgt:

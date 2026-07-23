@@ -65,13 +65,51 @@ The API reads the latest stored snapshot, builds `GraphState`, and runs the reas
 
 ## API
 
+The full frontend contract is documented as OpenAPI:
+
+- Guide: [docs/api.md](docs/api.md)
+- Generated schema: [docs/openapi.json](docs/openapi.json)
+- Live schema: `GET /openapi.json`
+- Interactive docs when the API is running: `GET /docs` and `GET /redoc`
+
+OpenAPI clients such as Insomnia should import `GET /openapi.json`. The `/docs` route returns the browser Swagger UI HTML page, not the JSON schema.
+
+Regenerate the checked-in schema after API changes:
+
+```bash
+python scripts/export_openapi.py
+```
+
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/healthz` | Liveness check |
+| `GET` | `/readyz` | Readiness check |
+| `GET` | `/auth/login` | Start WorkOS AuthKit hosted login |
+| `GET` | `/auth/callback` | Complete WorkOS AuthKit login and set the sealed session |
+| `GET` | `/auth/csrf` | Issue a signed double-submit CSRF token |
+| `POST` | `/auth/logout` | Clear the sealed session and redirect through WorkOS logout; use `format=json` for fetch-based logout |
 | `GET` | `/v1/topology` | Return the latest persisted topology graph |
 | `GET` | `/v1/topology?run_id=<uuid>` | Return topology for a specific snapshot run |
 | `POST` | `/v1/recommendations` | Run the recommendation pipeline on the latest persisted snapshot |
 | `POST` | `/v1/recommendations?run_id=<uuid>` | Run the recommendation pipeline on a specific snapshot run |
+| `GET` | `/v1/session` | Return the authenticated customer session |
+| `POST` | `/v1/session/organization` | Switch the active organization |
+| `GET` | `/v1/organizations` | List organizations available to the authenticated user |
+| `GET` | `/v1/team` | List organization members and invitations |
+| `POST` | `/v1/team/invitations` | Create a WorkOS organization invitation |
+| `DELETE` | `/v1/team/invitations/{invitation_id}` | Revoke a WorkOS organization invitation |
+| `PATCH` | `/v1/team/members/{membership_id}` | Update a WorkOS organization-membership role |
+| `DELETE` | `/v1/team/members/{membership_id}` | Deactivate a WorkOS organization membership |
+| `GET` | `/v1/clusters` | List organization-owned Kubernetes clusters |
+| `POST` | `/v1/clusters/{cluster_id}/registration-token` | Rotate and return a scoped collector registration token |
+| `POST` | `/collector/v1/register` | Exchange one one-time Helm token for a rotating collector credential |
+| `POST` | `/collector/v1/heartbeat` | Record a credential-scoped collector heartbeat |
+| `POST` | `/collector/v1/snapshots` | Persist a tenant-scoped hosted snapshot |
+| `POST` | `/collector/v1/credentials/rotate` | Rotate the collector credential |
+| `POST` | `/v1/analysis-runs` | Queue a tenant-scoped analysis run |
+| `GET` | `/v1/analysis-runs` | List tenant-scoped analysis runs |
+| `GET` | `/v1/analysis-runs/{run_id}` | Return one tenant-scoped analysis run |
+| `GET` | `/internal/v1/accounts` | Return the staff-only account overview |
 
 Run recommendations for the latest snapshot:
 
@@ -128,6 +166,39 @@ curl -s http://127.0.0.1:8000/healthz
 
 Snapshot-backed recommendation and topology endpoints require Postgres data. Use Docker Compose and the ingestion worker for the normal local flow.
 
+## Datadog LLM Observability
+
+The API process uses `ddtrace-run` to enable Datadog LLM Observability auto-instrumentation. Add your Datadog API key to the ignored `.env` file before starting the API:
+
+```bash
+DD_API_KEY=your_datadog_api_key_here
+```
+
+Docker Compose configures the EU site, agentless submission, and the `arch-agent` application name by default:
+
+```bash
+docker compose up --build api
+```
+
+For a local API process outside Docker Compose, prefix the start command explicitly:
+
+```bash
+DD_SITE=datadoghq.eu \
+DD_LLMOBS_ENABLED=1 \
+DD_LLMOBS_AGENTLESS_ENABLED=1 \
+DD_LLMOBS_ML_APP=arch-agent \
+DD_API_KEY=your_datadog_api_key_here \
+ddtrace-run uvicorn agent.app.main:app --reload
+```
+
+Trigger an LLM trace by running a recommendation request:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/v1/recommendations | jq .
+```
+
+If the API sends traces through a separately installed Datadog Agent, remove `DD_LLMOBS_AGENTLESS_ENABLED`.
+
 ## Docker Compose
 
 Create an env file:
@@ -168,6 +239,27 @@ If kubeconfig references local cert/key files, those paths must also be mounted.
 
 For in-cluster deployment, remove the kubeconfig mount and rely on in-cluster service account auth.
 
+## GCP Deployment
+
+The backend-only Terraform repository is generated beside this repository at
+`../arch-agent-infra`. It deploys the API, ops API, collector ingest, private
+worker, and scanner to Cloud Run behind Google Cloud's external Application
+Load Balancer. It does not deploy a dashboard UI or Nginx.
+
+Production assigns an explicit service role to each Cloud Run deployment. The
+shared image returns `404` for routes outside that service's API family, keeping
+staff routes behind IAP and worker routes private.
+
+Staging defaults to `https://api.staging.archagent.de` and
+`https://ingest.staging.archagent.de`; production defaults to
+`https://api.archagent.de` and `https://ingest.archagent.de`.
+
+The customer-cluster collector uses `Dockerfile.collector` and
+`deploy/helm/archagent-collector`. It exchanges a one-time registration token,
+stores the rotating credential and bounded retry queue in a PVC, reports the
+last successful upload timestamp, and sends outbound HTTPS only to the configured
+collector ingest endpoint.
+
 ## Configuration
 
 Environment variables use the `ARCHAGENT_` prefix. See `agent/app/config.py` and `.env.example`.
@@ -175,15 +267,29 @@ Environment variables use the `ARCHAGENT_` prefix. See `agent/app/config.py` and
 | Variable | Purpose |
 | --- | --- |
 | `ARCHAGENT_ENVIRONMENT` | Runtime environment: `dev`, `test`, or `prod` |
-| `ARCHAGENT_POSTGRES_DSN` | Postgres connection string |
-| `ARCHAGENT_K8S_AUTO_MIGRATE` | Auto-create/update connector tables |
+| `ARCHAGENT_PRODUCT_DATABASE_URL` | Product/dashboard Postgres connection string used by Alembic and product APIs |
+| `ARCHAGENT_POSTGRES_DSN` | Connector snapshot and global RAG Postgres connection string |
+| `ARCHAGENT_K8S_AUTO_MIGRATE` | Validate connector tables are present on startup. Run Alembic to create/update schema |
 | `ARCHAGENT_INGESTION_CONNECTORS` | Comma-separated connectors for the orchestrator. Default: `kubernetes,logs` |
 | `ARCHAGENT_K8S_POLL_INTERVAL_SEC` | Kubernetes worker polling interval |
 | `ARCHAGENT_K8S_INCLUDE_NAMESPACES` | Optional namespace allow-list |
 | `ARCHAGENT_K8S_EXCLUDE_NAMESPACES` | Namespace exclude list |
+| `ARCHAGENT_COLLECTOR_REGISTRATION_ENDPOINT` | Reachable control-plane endpoint embedded in generated Helm install commands |
+| `ARCHAGENT_COLLECTOR_INGEST_ENDPOINT` | HTTPS endpoint used by the hosted collector |
+| `ARCHAGENT_COLLECTOR_RETRY_QUEUE_FILE` | Disk-backed hosted collector retry queue |
+| `ARCHAGENT_COLLECTOR_RETRY_QUEUE_SIZE` | Maximum buffered collector snapshots before the oldest is discarded |
+| `ARCHAGENT_GCP_QUARANTINE_BUCKET` | Private GCS bucket for failed document scans |
+| `ARCHAGENT_ALLOWED_ORIGINS` | Explicit comma-separated browser CORS allow-list |
 | `ARCHAGENT_LOGS_ENABLED` | Enable the logs connector worker |
 | `ARCHAGENT_LOG_WINDOW_GRACE_SEC` | Extra seconds added to the log read window |
 | `ARCHAGENT_LOG_TAIL_LINES` | Max log lines read per pod/container per poll |
+
+Run database migrations after changing schema or after pointing product storage
+at a fresh Postgres database:
+
+```bash
+.venv/bin/alembic upgrade head
+```
 | `ARCHAGENT_PATTERN_STORE` | Pattern store mode. Current implementation: `filesystem` |
 | `ARCHAGENT_PATTERNS_PATH` | Path to JSON architecture patterns |
 | `ARCHAGENT_LOG_LLM_ENABLED` | Enable experimental log-analysis LLM sidecar |
@@ -228,8 +334,10 @@ Enable retrieval:
 
 ```bash
 ARCHAGENT_RAG_ENABLED=true
-ARCHAGENT_RAG_EMBEDDING_PROVIDER=openai
-ARCHAGENT_OPENAI_API_KEY=...
+ARCHAGENT_RAG_EMBEDDING_PROVIDER=google_cloud
+ARCHAGENT_RAG_EMBEDDING_MODEL=gemini-embedding-001
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+ARCHAGENT_GCP_LOCATION=global
 ```
 
 RAG settings:
@@ -239,14 +347,23 @@ RAG settings:
 | `ARCHAGENT_RAG_ENABLED` | Enable knowledge retrieval during recommendation runs |
 | `ARCHAGENT_RAG_STORE` | Knowledge store. Current implementation: `postgres` |
 | `ARCHAGENT_RAG_KNOWLEDGE_PATH` | Source directory mounted for ingestion |
-| `ARCHAGENT_RAG_EMBEDDING_PROVIDER` | `openai` for production, `hash` for offline tests/dev |
-| `ARCHAGENT_RAG_EMBEDDING_MODEL` | Embedding model, default `text-embedding-3-small` |
-| `ARCHAGENT_RAG_EMBEDDING_DIMENSIONS` | Embedding vector size |
+| `ARCHAGENT_RAG_EMBEDDING_PROVIDER` | `google_cloud` for Google Cloud Vertex AI, `openai` as a fallback option, `hash` for offline tests/dev |
+| `ARCHAGENT_RAG_EMBEDDING_MODEL` | Embedding model, default `gemini-embedding-001` |
+| `ARCHAGENT_RAG_EMBEDDING_DIMENSIONS` | Embedding vector size, default `1536` to match the current pgvector migration |
 | `ARCHAGENT_RAG_TOP_K` | Number of chunks retrieved per recommendation run |
 | `ARCHAGENT_RAG_CHUNK_TOKENS` | Approximate chunk size |
 | `ARCHAGENT_RAG_CHUNK_OVERLAP_TOKENS` | Approximate overlap between chunks |
 
 Retrieved chunks appear in the API response as `knowledge_context` and in the report under `Relevant Architecture Knowledge`.
+
+To use OpenAI embeddings instead:
+
+```bash
+ARCHAGENT_RAG_EMBEDDING_PROVIDER=openai
+ARCHAGENT_RAG_EMBEDDING_MODEL=text-embedding-3-small
+ARCHAGENT_RAG_EMBEDDING_DIMENSIONS=1536
+ARCHAGENT_OPENAI_API_KEY=...
+```
 
 ## LLM Providers
 
@@ -348,9 +465,9 @@ The optional log classifier is an agent node, not part of the connector. It read
 
 ## Storage Model
 
-Postgres is the persistence layer. Docker Compose uses `pgvector/pgvector:pg16` so architecture knowledge embeddings can be stored next to snapshots.
+Postgres is the persistence layer. Docker Compose uses `pgvector/pgvector:pg16` so product state, connector snapshots, and architecture knowledge embeddings can live in one database. Alembic owns schema creation and updates.
 
-Core tables:
+Connector and RAG tables:
 
 - `runs`: one row per ingestion snapshot, with full `snapshot` JSONB
 - `runs.data_quality`: collector completeness and inference quality JSONB
@@ -360,6 +477,10 @@ Core tables:
 - `log_events`: queryable normalized log event summaries
 - `architecture_knowledge_sources`: indexed RAG source metadata
 - `architecture_knowledge_chunks`: indexed RAG chunks and embeddings
+
+Product control-plane tables include `organizations`, `users`, `clusters`,
+`snapshot_runs`, `analysis_runs`, `knowledge_documents`, `knowledge_chunks`,
+`audit_events`, and WorkOS sync/receipt tables.
 
 JSONB is used for evolving snapshot shape while relational tables keep common query paths simple.
 

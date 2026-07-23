@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Set, Tuple
 
-from kubernetes.client import V1ConfigMap, V1Deployment, V1Pod, V1Secret, V1Service
+from kubernetes.client import V1ConfigMap, V1Deployment, V1Pod, V1Service
 
 from agent.app.connectors.kubernetes.kube_labels import app_name_for_labels, app_name_for_pod
 from agent.app.connectors.kubernetes.topology_builder import build_topology
@@ -192,7 +192,6 @@ def normalize(
     pod_metrics: List[Dict[str, Any]],
     hpas: List[Any],
     config_maps: List[V1ConfigMap] | None = None,
-    secrets: List[V1Secret] | None = None,
     include_namespaces: Iterable[str] | None = None,
     exclude_namespaces: Iterable[str] | None = DEFAULT_EXCLUDED_NAMESPACES,
 ) -> Dict[str, Any]:
@@ -208,7 +207,6 @@ def normalize(
     deployments, _ = _filter_by_namespace(deployments, include_ns, exclude_ns)
     services, _ = _filter_by_namespace(services, include_ns, exclude_ns)
     config_maps, _ = _filter_by_namespace(config_maps or [], include_ns, exclude_ns)
-    secrets, _ = _filter_by_namespace(secrets or [], include_ns, exclude_ns)
     hpas, _ = _filter_by_namespace(hpas, include_ns, exclude_ns)
     pod_metrics = [
         m for m in pod_metrics if _namespace_allowed(_metric_namespace(m), include_ns, exclude_ns)
@@ -289,7 +287,7 @@ def normalize(
         )
 
     app_names: Set[str] = set(by_app.keys())
-    topology = build_topology(pods, services, app_names, config_maps=config_maps, secrets=secrets)
+    topology = build_topology(pods, services, app_names, config_maps=config_maps)
     topology["service_details"] = {
         str(s["name"]): {
             "namespace": s.get("namespace"),

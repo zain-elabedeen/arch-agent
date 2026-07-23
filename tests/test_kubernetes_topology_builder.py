@@ -8,7 +8,6 @@ from kubernetes.client import (
     V1ObjectMeta,
     V1Pod,
     V1PodSpec,
-    V1Secret,
     V1SecretEnvSource,
     V1SecretKeySelector,
     V1Service,
@@ -87,17 +86,13 @@ def test_build_topology_captures_meaningful_external_dependencies():
             "type": "http",
             "protocol": "https",
             "inferred_from": "external_hostname",
-            "evidence": ["PAYMENTS_URL=https://api.stripe.com/v1/charges"],
+            "evidence": ["PAYMENTS_URL=<redacted>"],
             "confidence": 0.45,
         }
     ]
 
 
-def test_build_topology_resolves_secret_key_ref_without_leaking_secret_value():
-    secret = V1Secret(
-        metadata=V1ObjectMeta(name="api-secret", namespace="default"),
-        data={"database-url": "cG9zdGdyZXM6Ly9qdW5lLWFwaS1wb3N0Z3Jlc3FsOjU0MzIvYXBw"},
-    )
+def test_build_topology_does_not_resolve_secret_key_refs():
     pods = [
         _pod(
             "api-abc-123",
@@ -114,21 +109,15 @@ def test_build_topology_resolves_secret_key_ref_without_leaking_secret_value():
         _pod("june-api-postgresql-abc-123", "june-api-postgresql"),
     ]
 
-    topology = build_topology(pods, [], {"api", "june-api-postgresql"}, secrets=[secret])
+    topology = build_topology(pods, [], {"api", "june-api-postgresql"})
 
-    edge = topology["edges"][0]
-    assert (edge["from"], edge["to"], edge["type"]) == ("api", "june-api-postgresql", "db")
-    assert edge["evidence"] == ["DATABASE_URL from secret/default/api-secret/database-url"]
+    assert topology["edges"] == []
 
 
-def test_build_topology_resolves_env_from_config_maps_and_secrets():
+def test_build_topology_resolves_env_from_config_maps_but_not_secrets():
     config_map = V1ConfigMap(
         metadata=V1ObjectMeta(name="api-config", namespace="default"),
         data={"QUEUE_URL": "jobs.default.svc"},
-    )
-    secret = V1Secret(
-        metadata=V1ObjectMeta(name="api-secret", namespace="default"),
-        string_data={"CACHE_URL": "redis://redis:6379"},
     )
     pods = [
         V1Pod(
@@ -155,14 +144,12 @@ def test_build_topology_resolves_env_from_config_maps_and_secrets():
         services,
         {"api", "worker", "redis"},
         config_maps=[config_map],
-        secrets=[secret],
     )
     edges = {(e["from"], e["to"], e["type"]) for e in topology["edges"]}
 
     assert ("api", "worker", "queue") in edges
-    assert ("api", "redis", "cache") in edges
+    assert ("api", "redis", "cache") not in edges
     assert any("QUEUE_URL from configmap/default/api-config/QUEUE_URL" in e["evidence"] for e in topology["edges"])
-    assert any("CACHE_URL from secret/default/api-secret/CACHE_URL" in e["evidence"] for e in topology["edges"])
 
 
 def test_build_topology_ignores_plain_config_flags_as_external_dependencies():

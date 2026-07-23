@@ -25,8 +25,14 @@ services:
       - .env
     environment:
       ARCHAGENT_POSTGRES_DSN: postgresql+psycopg://archagent:archagent@postgres:5432/archagent
+      ARCHAGENT_PRODUCT_DATABASE_URL: postgresql+psycopg://archagent:archagent@postgres:5432/archagent
       ARCHAGENT_K8S_AUTO_MIGRATE: "true"
       GOOGLE_CLOUD_QUOTA_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      DD_SITE: ${DD_SITE:-datadoghq.eu}
+      DD_LLMOBS_ENABLED: ${DD_LLMOBS_ENABLED:-1}
+      DD_LLMOBS_AGENTLESS_ENABLED: ${DD_LLMOBS_AGENTLESS_ENABLED:-1}
+      DD_LLMOBS_ML_APP: ${DD_LLMOBS_ML_APP:-arch-agent}
+      DD_API_KEY: ${DD_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,7 +41,7 @@ services:
     volumes:
       - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
       - ./agent/app/knowledge_sources:/app/agent/app/knowledge_sources
-    command: ["uvicorn", "agent.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["ddtrace-run", "uvicorn", "agent.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
   ingestion-worker:
     profiles: ["workers"]

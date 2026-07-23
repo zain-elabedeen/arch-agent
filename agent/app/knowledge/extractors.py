@@ -7,13 +7,15 @@ from typing import Iterable
 
 from agent.app.knowledge.models import KnowledgeDocument
 
-SUPPORTED_EXTENSIONS = {".md", ".txt", ".pdf"}
+SUPPORTED_EXTENSIONS = {".md", ".txt", ".pdf", ".docx"}
 
 
 def source_type_for_path(path: Path) -> str:
     """Map file extensions to coarse source types used in citations."""
     if path.suffix.lower() == ".pdf":
         return "book"
+    if path.suffix.lower() == ".docx":
+        return "docx"
     if path.suffix.lower() == ".md":
         return "markdown"
     return "text"
@@ -40,6 +42,8 @@ def extract_document(path: str | Path) -> KnowledgeDocument:
 
     if suffix == ".pdf":
         text = _extract_pdf_text(source)
+    elif suffix == ".docx":
+        text = _extract_docx_text(source)
     else:
         text = source.read_text(encoding="utf-8")
 
@@ -67,3 +71,12 @@ def _extract_pdf_text(path: Path) -> str:
             pages.append(f"\n\n[page {page_number}]\n{page_text.strip()}")
     return "\n".join(pages).strip()
 
+
+def _extract_docx_text(path: Path) -> str:
+    try:
+        from docx import Document  # type: ignore[reportMissingImports]
+    except Exception as exc:  # pragma: no cover - dependency failure path
+        raise RuntimeError("DOCX ingestion requires the python-docx package.") from exc
+
+    document = Document(str(path))
+    return "\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()).strip()

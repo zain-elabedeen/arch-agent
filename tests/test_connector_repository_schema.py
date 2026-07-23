@@ -1,5 +1,6 @@
+import importlib
+
 from agent.app.connectors.repository import (
-    _ddl_statements,
     log_events_t,
     runs_t,
     service_metrics_t,
@@ -12,6 +13,7 @@ def test_repository_tables_cover_normalized_snapshot_fields():
     assert {
         "id",
         "created_at",
+        "updated_at",
         "snapshot",
         "data_quality",
     }.issubset(runs_t.c.keys())
@@ -28,6 +30,7 @@ def test_repository_tables_cover_normalized_snapshot_fields():
         "available_replicas",
         "unavailable_replicas",
         "restarts",
+        "updated_at",
     }.issubset(service_metrics_t.c.keys())
 
     assert {
@@ -40,6 +43,7 @@ def test_repository_tables_cover_normalized_snapshot_fields():
         "single_instance_service_count",
         "hpa_scaling_pressure",
         "payload",
+        "updated_at",
     }.issubset(signals_t.c.keys())
 
     assert {
@@ -48,6 +52,7 @@ def test_repository_tables_cover_normalized_snapshot_fields():
         "target",
         "type",
         "inferred_from",
+        "updated_at",
     }.issubset(topology_t.c.keys())
 
     assert {
@@ -62,11 +67,13 @@ def test_repository_tables_cover_normalized_snapshot_fields():
         "is_error",
         "count",
         "message_sample",
+        "updated_at",
     }.issubset(log_events_t.c.keys())
 
 
 def test_repository_migrations_include_recent_normalizer_columns():
-    ddl = "\n".join(_ddl_statements()).lower()
+    migration = importlib.import_module("migrations.versions.0008_connector_snapshot_schema")
+    ddl = "\n".join(migration.CONNECTOR_SCHEMA_STATEMENTS).lower()
 
     for fragment in (
         "alter table runs add column if not exists data_quality jsonb",
@@ -78,5 +85,10 @@ def test_repository_migrations_include_recent_normalizer_columns():
         "alter table topology add column if not exists inferred_from text",
         "create table if not exists log_events",
         "create index if not exists idx_log_events_run_id on log_events",
+        "alter table runs add column if not exists updated_at timestamptz not null default now()",
+        "alter table service_metrics add column if not exists updated_at timestamptz not null default now()",
+        "alter table signals add column if not exists updated_at timestamptz not null default now()",
+        "alter table topology add column if not exists updated_at timestamptz not null default now()",
+        "alter table log_events add column if not exists updated_at timestamptz not null default now()",
     ):
         assert fragment in ddl

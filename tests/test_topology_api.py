@@ -4,7 +4,9 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
 
+from agent.app.api.topology import _filter_graph_namespaces
 from agent.app.main import app
 
 
@@ -80,3 +82,35 @@ def test_topology_endpoint_unknown_run_errors(monkeypatch: pytest.MonkeyPatch, c
     r = client.get(f"/v1/topology?run_id={uuid4()}")
 
     assert r.status_code == 404
+
+
+def test_topology_endpoint_snapshot_database_errors_are_unavailable(monkeypatch: pytest.MonkeyPatch, client: TestClient) -> None:
+    def unavailable(settings, rid):
+        raise SQLAlchemyError("database offline")
+
+    monkeypatch.setattr("agent.app.api.topology.fetch_topology_graph", unavailable)
+    r = client.get("/v1/topology")
+
+    assert r.status_code == 503
+
+
+def test_namespace_allow_list_filters_visible_topology() -> None:
+    graph = {
+        "nodes": [
+            {"id": "k8s:default:workload:api", "namespace": "default"},
+            {"id": "k8s:kube-system:workload:dns", "namespace": "kube-system"},
+            {"id": "external:postgres", "is_external": True},
+        ],
+        "edges": [
+            {"id": "allowed", "from": "k8s:default:workload:api", "to": "external:postgres"},
+            {"id": "excluded", "from": "k8s:kube-system:workload:dns", "to": "external:postgres"},
+        ],
+        "meta": {},
+    }
+
+    filtered = _filter_graph_namespaces(graph, {"default"})
+
+    assert {node["id"] for node in filtered["nodes"]} == {"k8s:default:workload:api", "external:postgres"}
+    assert [edge["id"] for edge in filtered["edges"]] == ["allowed"]
+    assert filtered["meta"]["node_count"] == 2
+    assert filtered["meta"]["edge_count"] == 1

@@ -1,8 +1,11 @@
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from agent.app.config import Settings
 from agent.app.knowledge.chunking import chunk_document
-from agent.app.knowledge.embeddings import HashEmbeddingProvider
+from agent.app.knowledge.embeddings import HashEmbeddingProvider, get_embedding_provider
 from agent.app.knowledge.extractors import extract_document
 from agent.app.knowledge.models import KnowledgeChunkReference
 from agent.app.knowledge.retriever import build_knowledge_query, retrieve_knowledge_context
@@ -82,6 +85,52 @@ def test_retrieve_knowledge_context_can_use_injected_dependencies():
     assert results[0].source_title == "Release It"
 
 
+def test_google_cloud_embedding_provider_uses_vertex_retrieval_tasks(monkeypatch):
+    created_clients = []
+    embed_calls = []
+
+    class FakeModels:
+        def embed_content(self, *, model, contents, config):
+            embed_calls.append((model, contents, config))
+            value = 1.0 if config.task_type == "RETRIEVAL_DOCUMENT" else 2.0
+            return SimpleNamespace(embeddings=[SimpleNamespace(values=[value, 0.0, 0.0, 0.0])])
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            created_clients.append(kwargs)
+            self.models = FakeModels()
+
+    monkeypatch.setattr("google.genai.Client", FakeClient)
+
+    provider = get_embedding_provider(
+        Settings(
+            rag_embedding_provider="google_cloud",
+            rag_embedding_model="gemini-embedding-001",
+            rag_embedding_dimensions=4,
+            gcp_project_id="project",
+            gcp_location="global",
+        )
+    )
+
+    assert provider.embed_texts(["document chunk"]) == [[1.0, 0.0, 0.0, 0.0]]
+    assert provider.embed_query("search query") == [2.0, 0.0, 0.0, 0.0]
+    assert created_clients[0]["vertexai"] is True
+    assert created_clients[0]["project"] == "project"
+    assert created_clients[0]["location"] == "global"
+    assert [(call[0], call[1], call[2].task_type, call[2].output_dimensionality) for call in embed_calls] == [
+        ("gemini-embedding-001", "document chunk", "RETRIEVAL_DOCUMENT", 4),
+        ("gemini-embedding-001", "search query", "RETRIEVAL_QUERY", 4),
+    ]
+
+
+def test_google_cloud_embedding_provider_requires_project(monkeypatch):
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT", raising=False)
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT_ID", raising=False)
+
+    with pytest.raises(RuntimeError, match="GOOGLE_CLOUD_PROJECT"):
+        get_embedding_provider(Settings(rag_embedding_provider="google_cloud", gcp_project_id=None))
+
+
 def test_knowledge_node_is_noop_when_rag_disabled():
     settings = Settings(rag_enabled=False)
     out = knowledge_retrieval_node({"run_id": "test"}, settings)
@@ -110,4 +159,3 @@ def test_reasoning_report_includes_knowledge_citations():
     assert "Relevant Architecture Knowledge" in report
     assert "Architecture Notes" in report
     assert "Single replicas are availability risks" in report
-

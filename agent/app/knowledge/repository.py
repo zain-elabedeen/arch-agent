@@ -5,13 +5,18 @@ from __future__ import annotations
 import uuid
 from typing import Any, Protocol
 
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, inspect, text
 
 from agent.app.config import Settings
 from agent.app.knowledge.embeddings import vector_literal
 from agent.app.knowledge.models import KnowledgeChunk, KnowledgeChunkReference
 
 _SCHEMA_READY: set[str] = set()
+ARCHITECTURE_KNOWLEDGE_TABLE_NAMES = (
+    "architecture_knowledge_sources",
+    "architecture_knowledge_chunks",
+)
+ARCHITECTURE_KNOWLEDGE_DIMENSIONS = 1536
 
 
 class KnowledgeRepository(Protocol):
@@ -37,50 +42,21 @@ class PostgresKnowledgeRepository:
         key = f"{self.engine.url}:{self.dimensions}"
         if key in _SCHEMA_READY:
             return
-        with self.engine.begin() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            conn.execute(
-                text(
-                    """
-                    CREATE TABLE IF NOT EXISTS architecture_knowledge_sources (
-                        id UUID PRIMARY KEY,
-                        title TEXT NOT NULL,
-                        source_type TEXT NOT NULL,
-                        path TEXT NOT NULL UNIQUE,
-                        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-                        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-                    )
-                    """
-                )
+        if self.dimensions != ARCHITECTURE_KNOWLEDGE_DIMENSIONS:
+            raise RuntimeError(
+                "Architecture knowledge schema is migrated for "
+                f"{ARCHITECTURE_KNOWLEDGE_DIMENSIONS}-dimension embeddings; got {self.dimensions}."
             )
-            conn.execute(
-                text(
-                    f"""
-                    CREATE TABLE IF NOT EXISTS architecture_knowledge_chunks (
-                        id UUID PRIMARY KEY,
-                        source_id UUID NOT NULL REFERENCES architecture_knowledge_sources(id) ON DELETE CASCADE,
-                        chunk_index INTEGER NOT NULL,
-                        content TEXT NOT NULL,
-                        content_hash TEXT NOT NULL UNIQUE,
-                        embedding vector({self.dimensions}) NOT NULL,
-                        metadata JSONB NOT NULL DEFAULT '{{}}'::jsonb,
-                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                        UNIQUE (source_id, chunk_index)
-                    )
-                    """
-                )
-            )
-            conn.execute(
-                text(
-                    "CREATE INDEX IF NOT EXISTS idx_arch_knowledge_chunks_source_id "
-                    "ON architecture_knowledge_chunks (source_id)"
-                )
-            )
-            conn.execute(
-                text(
-                    "CREATE INDEX IF NOT EXISTS idx_arch_knowledge_chunks_embedding "
-                    "ON architecture_knowledge_chunks USING ivfflat (embedding vector_cosine_ops)"
-                )
+        inspector = inspect(self.engine)
+        missing = [
+            table_name
+            for table_name in ARCHITECTURE_KNOWLEDGE_TABLE_NAMES
+            if not inspector.has_table(table_name)
+        ]
+        if missing:
+            raise RuntimeError(
+                "Architecture knowledge schema is not migrated. Run `.venv/bin/alembic upgrade head`. "
+                f"Missing tables: {', '.join(missing)}"
             )
         _SCHEMA_READY.add(key)
 
@@ -108,7 +84,8 @@ class PostgresKnowledgeRepository:
                         ON CONFLICT (path) DO UPDATE
                         SET title = EXCLUDED.title,
                             source_type = EXCLUDED.source_type,
-                            metadata = EXCLUDED.metadata
+                            metadata = EXCLUDED.metadata,
+                            updated_at = now()
                         RETURNING id
                         """
                     ),
@@ -135,7 +112,8 @@ class PostgresKnowledgeRepository:
                         SET content = EXCLUDED.content,
                             content_hash = EXCLUDED.content_hash,
                             embedding = EXCLUDED.embedding,
-                            metadata = EXCLUDED.metadata
+                            metadata = EXCLUDED.metadata,
+                            updated_at = now()
                         """
                     ),
                     {
@@ -203,4 +181,3 @@ def _json_dumps(value: dict[str, Any]) -> str:
     import json
 
     return json.dumps(value, sort_keys=True)
-
